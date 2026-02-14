@@ -2,6 +2,7 @@ package scanner
 
 import (
 	"regexp"
+	"strings"
 	"testing"
 )
 
@@ -22,6 +23,12 @@ func TestPerson_TruePositives(t *testing.T) {
 		{"Madame Sophie Laurent est là.", "Sophie Laurent"},
 		{"Mevrouw Anna Bakker woont hier.", "Anna Bakker"},
 		{"my colleague Thomas Weber said hello.", "Thomas Weber"},
+		// German role triggers
+		{"Leiter: Franz Zaman", "Franz Zaman"},
+		{"Leiterin Maria Berger ist zuständig.", "Maria Berger"},
+		{"Geschäftsführer Thomas Weber leitet.", "Thomas Weber"},
+		{"Inhaber: Hans Gruber", "Hans Gruber"},
+		{"Direktor Karl Müller berichtet.", "Karl Müller"},
 	}
 	for _, tc := range cases {
 		entities := s.Scan(tc.input)
@@ -110,6 +117,9 @@ func TestPhone_TruePositives(t *testing.T) {
 		{"Ring +44 20 7946 0958 please.", "+44 20 7946 0958"},
 		{"Appelez le +33 6 12 34 56 78.", "+33 6 12 34 56 78"},
 		{"Chiami +39 06 1234 5678.", "+39 06 1234 5678"},
+		// Trunk prefix (0) notation
+		{"Tel: +43-(0)6212 2368", "+43-(0)6212 2368"},
+		{"Call +49 (0)30 1234567", "+49 (0)30 1234567"},
 	}
 	for _, tc := range cases {
 		entities := s.Scan(tc.input)
@@ -280,25 +290,40 @@ func TestCreditCard_TrueNegatives(t *testing.T) {
 func TestDate_TruePositives(t *testing.T) {
 	s := DefaultScanner(nil)
 	cases := []struct {
+		name  string
 		input string
 		want  string
 	}{
-		{"geboren am 15.03.1990 in Berlin.", "15.03.1990"},
-		{"Date: 14/03/2024 confirmed.", "14/03/2024"},
-		{"Termin am 01-12-2023.", "01-12-2023"},
+		// Numeric formats
+		{"DE dot", "geboren am 15.03.1990 in Berlin.", "15.03.1990"},
+		{"slash", "Date: 14/03/2024 confirmed.", "14/03/2024"},
+		{"dash", "Termin am 01-12-2023.", "01-12-2023"},
+		// Written English dates
+		{"EN full month", "Date of issue February 12, 2026", "February 12, 2026"},
+		{"EN abbr month", "Filed on Jan 5, 2025", "Jan 5, 2025"},
+		{"EN no comma", "Due March 1 2024", "March 1 2024"},
+		// Written German dates
+		{"DE written", "geboren am 15. März 1990", "15. März 1990"},
+		{"DE written long", "am 1. Januar 2026 eingereicht", "1. Januar 2026"},
+		// ISO format
+		{"ISO", "Created: 2024-03-15", "2024-03-15"},
+		// Written French dates
+		{"FR written", "le 12 février 2026", "12 février 2026"},
 	}
 	for _, tc := range cases {
-		entities := s.Scan(tc.input)
-		found := false
-		for _, e := range entities {
-			if e.Type == "DATE" && e.Text == tc.want {
-				found = true
-				break
+		t.Run(tc.name, func(t *testing.T) {
+			entities := s.Scan(tc.input)
+			found := false
+			for _, e := range entities {
+				if e.Type == "DATE" && e.Text == tc.want {
+					found = true
+					break
+				}
 			}
-		}
-		if !found {
-			t.Errorf("DATE not found in %q: wanted %q, got %v", tc.input, tc.want, entities)
-		}
+			if !found {
+				t.Errorf("DATE not found in %q: wanted %q, got %v", tc.input, tc.want, entities)
+			}
+		})
 	}
 }
 
@@ -451,40 +476,66 @@ func TestFinancial_TrueNegatives(t *testing.T) {
 func TestAddress_TruePositives(t *testing.T) {
 	s := DefaultScanner(nil)
 	cases := []struct {
+		name  string
 		input string
 	}{
-		{"Wohnt in Hauptstraße 42, 10115 Berlin."},
-		{"Via Roma 42, 00184 Roma."},
-		{"Keizersgracht 100 in Amsterdam."},
+		// German
+		{"DE suffix", "Wohnt in Hauptstraße 42, 10115 Berlin."},
+		// Italian
+		{"IT via", "Via Roma 42, 00184 Roma."},
+		// Dutch
+		{"NL gracht", "Keizersgracht 100 in Amsterdam."},
+		// US street
+		{"US street", "Address: 440 N Barranca Ave #4133"},
+		{"US street simple", "Lives at 123 Main Street now."},
+		{"US street blvd", "Office at 500 Broadway Blvd"},
+		{"US street directional", "Located at 1600 Pennsylvania Ave NW"},
+		// US city/state/ZIP
+		{"US city state zip abbr", "Covina, CA 91723"},
+		{"US city state zip full", "Covina, California 91723"},
+		{"US zip+4", "New York, NY 10001-1234"},
+		{"US multi-word city", "San Francisco, CA 94102"},
+		// Austrian apartment notation
+		{"AT apartment", "Quellenstraße 42/3/12"},
+		{"AT apartment short", "Mariahilferstraße 5/2"},
+		{"AT 4-digit postcode", "Hauptstraße 42, 1010 Wien"},
 	}
 	for _, tc := range cases {
-		entities := s.Scan(tc.input)
-		found := false
-		for _, e := range entities {
-			if e.Type == "ADDRESS" {
-				found = true
-				break
+		t.Run(tc.name, func(t *testing.T) {
+			entities := s.Scan(tc.input)
+			found := false
+			for _, e := range entities {
+				if e.Type == "ADDRESS" {
+					found = true
+					break
+				}
 			}
-		}
-		if !found {
-			t.Errorf("ADDRESS not found in %q, got %v", tc.input, entities)
-		}
+			if !found {
+				t.Errorf("ADDRESS not found in %q, got %v", tc.input, entities)
+			}
+		})
 	}
 }
 
 func TestAddress_TrueNegatives(t *testing.T) {
 	s := DefaultScanner(nil)
-	cases := []string{
-		"The weather is sunny today.",
-		"We discussed the project plan.",
+	cases := []struct {
+		name  string
+		input string
+	}{
+		{"plain text", "The weather is sunny today."},
+		{"project text", "We discussed the project plan."},
+		{"bare number", "The 440 report was filed."},
 	}
-	for _, input := range cases {
-		entities := s.Scan(input)
-		for _, e := range entities {
-			if e.Type == "ADDRESS" {
-				t.Errorf("ADDRESS false positive in %q: got %v", input, e)
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			entities := s.Scan(tc.input)
+			for _, e := range entities {
+				if e.Type == "ADDRESS" {
+					t.Errorf("ADDRESS false positive in %q: got %v", tc.input, e)
+				}
 			}
-		}
+		})
 	}
 }
 
@@ -691,6 +742,13 @@ func TestIDNumber_TruePositives(t *testing.T) {
 		{"German Steuer-ID", "Steuer-ID: 12345678901", "ID_NUMBER", "12345678901"},
 		{"Passport number", "Reisepass: C01X00T47", "ID_NUMBER", "C01X00T47"},
 		{"EU VAT", "VAT DE123456789", "ID_NUMBER", "DE123456789"},
+		// Invoice numbers
+		{"Invoice number", "Invoice number A49E63AA-0002", "ID_NUMBER", "A49E63AA-0002"},
+		{"Invoice no.", "Invoice no. INV-2024-001", "ID_NUMBER", "INV-2024-001"},
+		{"Rechnungsnummer", "Rechnungsnummer RE-2024/0042", "ID_NUMBER", "RE-2024/0042"},
+		{"Order number", "Order number ORD-99887", "ID_NUMBER", "ORD-99887"},
+		{"Reference colon", "Reference: REF-ABC-123", "ID_NUMBER", "REF-ABC-123"},
+		{"Invoice colon", "Invoice: 2024-0042", "ID_NUMBER", "2024-0042"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -924,6 +982,603 @@ func TestUTF8MultibyteOffsets(t *testing.T) {
 				input, e.Start, e.End, extracted, e.Text)
 		}
 	}
+}
+
+// --- Real-world invoice test ---
+
+func TestInvoiceDocument(t *testing.T) {
+	s := DefaultScanner(nil)
+	// Simulates a real invoice document — should detect multiple entity types.
+	input := `Invoice
+Invoice number A49E63AA-0002
+Date of issue February 12, 2026
+Date due February 12, 2026
+440 N Barranca Ave #4133
+Covina, California 91723
+United States
+contact@example.com`
+
+	entities := s.Scan(input)
+
+	// Build a set of detected types for easy checking.
+	typeFound := make(map[string][]string)
+	for _, e := range entities {
+		typeFound[e.Type] = append(typeFound[e.Type], e.Text)
+	}
+
+	// Invoice number should be detected
+	if _, ok := typeFound["ID_NUMBER"]; !ok {
+		t.Errorf("Invoice number not detected; entities: %v", entities)
+	}
+	// Written dates should be detected
+	if _, ok := typeFound["DATE"]; !ok {
+		t.Errorf("Written dates not detected; entities: %v", entities)
+	}
+	// US street address should be detected
+	if _, ok := typeFound["ADDRESS"]; !ok {
+		t.Errorf("US address not detected; entities: %v", entities)
+	}
+	// Email should be detected
+	if _, ok := typeFound["EMAIL"]; !ok {
+		t.Errorf("Email not detected; entities: %v", entities)
+	}
+
+	t.Logf("Detected entities: %v", entities)
+}
+
+// --- Austrian address block test ---
+
+func TestAustrianAddressBlock(t *testing.T) {
+	s := DefaultScanner(nil)
+	// Typical Austrian invoice address: street, city, postcode+city, country
+	input := `Musterstraße 5/2/3
+Musterort
+1100 Wien
+Austria`
+
+	entities := s.Scan(input)
+
+	streetFound := false
+	postcodeFound := false
+	for _, e := range entities {
+		if e.Type == "ADDRESS" {
+			if strings.Contains(e.Text, "Musterstraße") {
+				streetFound = true
+			}
+			if strings.Contains(e.Text, "1100") && strings.Contains(e.Text, "Wien") {
+				postcodeFound = true
+			}
+		}
+	}
+	if !streetFound {
+		t.Errorf("Austrian street not detected; entities: %v", entities)
+	}
+	if !postcodeFound {
+		t.Errorf("Austrian postcode+city not detected; entities: %v", entities)
+	}
+
+	t.Logf("Detected entities: %v", entities)
+}
+
+func TestAustrianAddressNoSuffix(t *testing.T) {
+	s := DefaultScanner(nil)
+	// Street name without standard suffix — should still be detected
+	// when part of an address block with postcode/country nearby.
+	cases := []struct {
+		name  string
+		input string
+	}{
+		{
+			"no suffix with country",
+			"Spittelau 12\n1090 Wien\nAustria",
+		},
+		{
+			"no suffix with postcode",
+			"Am Tabor 5/2\n1020 Wien\nÖsterreich",
+		},
+		{
+			"no suffix multi-word",
+			"Untere Donaulände 7\n4020 Linz\nAustria",
+		},
+		{
+			"no suffix with street nearby",
+			"Hauptstraße 1\nSomeplace 42\n8010 Graz",
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			entities := s.Scan(tc.input)
+			found := false
+			for _, e := range entities {
+				if e.Type == "ADDRESS" {
+					found = true
+					break
+				}
+			}
+			if !found {
+				t.Errorf("ADDRESS not found in %q, got %v", tc.input, entities)
+			}
+		})
+	}
+}
+
+func TestGenericStreet_TrueNegatives(t *testing.T) {
+	s := DefaultScanner(nil)
+	// Should NOT match generic word+number without address context
+	cases := []string{
+		"Chapter 42 was interesting.",
+		"Room 101 is occupied.",
+		"Version 3 released today.",
+	}
+	for _, input := range cases {
+		entities := s.Scan(input)
+		for _, e := range entities {
+			if e.Type == "ADDRESS" {
+				t.Errorf("ADDRESS false positive in %q: got %v", input, e)
+			}
+		}
+	}
+}
+
+// --- Billing label PERSON tests ---
+
+func TestPerson_BillingTriggers(t *testing.T) {
+	s := DefaultScanner(nil)
+	cases := []struct {
+		name  string
+		input string
+		want  string
+	}{
+		{"Bill to", "Bill to John Smith\nAustria", "John Smith"},
+		{"Billed to", "Billed to Maria Müller", "Maria Müller"},
+		{"Invoice to", "Invoice to Thomas Weber", "Thomas Weber"},
+		{"Sold to", "Sold to Pierre Dupont", "Pierre Dupont"},
+		{"Ship to", "Ship to Anna Bakker", "Anna Bakker"},
+		{"Attn", "Attn: Jean Dupont", "Jean Dupont"},
+		{"Attention", "Attention Sophie Laurent", "Sophie Laurent"},
+		{"Bill to newline", "Bill to\nJohn Smith", "John Smith"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			entities := s.Scan(tc.input)
+			found := false
+			for _, e := range entities {
+				if e.Type == "PERSON" && e.Text == tc.want {
+					found = true
+					break
+				}
+			}
+			if !found {
+				t.Errorf("PERSON not found in %q: wanted %q, got %v", tc.input, tc.want, entities)
+			}
+		})
+	}
+}
+
+// --- EUR dot-decimal FINANCIAL tests ---
+
+func TestFinancial_EURDotDecimal(t *testing.T) {
+	s := DefaultScanner(nil)
+	cases := []struct {
+		name  string
+		input string
+		want  string
+	}{
+		{"EUR prefix simple", "Total: €8.00 due", "€8.00"},
+		{"EUR prefix thousands", "Amount: €1,000.00 charged", "€1,000.00"},
+		{"EUR prefix space", "Cost € 250.00 billed", "€ 250.00"},
+		{"EUR suffix", "Total 8.00€ due", "8.00€"},
+		{"EUR suffix space", "Total 1,500.00 € billed", "1,500.00 €"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			entities := s.Scan(tc.input)
+			found := false
+			for _, e := range entities {
+				if e.Type == "FINANCIAL" && e.Text == tc.want {
+					found = true
+					break
+				}
+			}
+			if !found {
+				t.Errorf("FINANCIAL not found in %q: wanted %q, got %v", tc.input, tc.want, entities)
+			}
+		})
+	}
+}
+
+// --- ORG ULC/DAC/LLP tests ---
+
+func TestOrganization_IrishCorporate(t *testing.T) {
+	s := DefaultScanner(nil)
+	cases := []struct {
+		name  string
+		input string
+		want  string
+	}{
+		{"ULC", "Registered as Twitter International ULC in Ireland.", "Twitter International ULC"},
+		{"DAC", "Filed by Acme Holdings DAC today.", "Acme Holdings DAC"},
+		{"LLP", "Partners at Smith Jones LLP agreed.", "Smith Jones LLP"},
+		{"Plc", "Shares in Royal Bank Plc.", "Royal Bank Plc"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			entities := s.Scan(tc.input)
+			found := false
+			for _, e := range entities {
+				if e.Type == "ORG" && e.Text == tc.want {
+					found = true
+					break
+				}
+			}
+			if !found {
+				t.Errorf("ORG not found in %q: wanted %q, got %v", tc.input, tc.want, entities)
+			}
+		})
+	}
+}
+
+// --- Irish Eircode tests ---
+
+func TestAddress_IrishEircode(t *testing.T) {
+	s := DefaultScanner(nil)
+	cases := []struct {
+		name  string
+		input string
+		want  string
+	}{
+		{"Dublin Eircode", "Address: Dublin 2, D02 AX07, Ireland", "D02 AX07"},
+		{"Cork Eircode", "Located at T12 AB34 Cork", "T12 AB34"},
+		{"Galway Eircode", "H91 E2F3 is the code", "H91 E2F3"},
+		{"Dublin 6W Eircode", "Postal code D6W YF40", "D6W YF40"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			entities := s.Scan(tc.input)
+			found := false
+			for _, e := range entities {
+				if e.Type == "ADDRESS" && e.Text == tc.want {
+					found = true
+					break
+				}
+			}
+			if !found {
+				t.Errorf("ADDRESS not found in %q: wanted %q, got %v", tc.input, tc.want, entities)
+			}
+		})
+	}
+}
+
+func TestAddress_DublinDistrict(t *testing.T) {
+	s := DefaultScanner(nil)
+	cases := []struct {
+		name  string
+		input string
+		want  string
+	}{
+		{"Dublin 2", "Located in Dublin 2 area", "Dublin 2"},
+		{"Dublin 24", "Dublin 24\nIreland", "Dublin 24"},
+		{"Dublin 6W", "Dublin 6W\nIreland", "Dublin 6W"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			entities := s.Scan(tc.input)
+			found := false
+			for _, e := range entities {
+				if e.Type == "ADDRESS" && e.Text == tc.want {
+					found = true
+					break
+				}
+			}
+			if !found {
+				t.Errorf("ADDRESS not found in %q: wanted %q, got %v", tc.input, tc.want, entities)
+			}
+		})
+	}
+}
+
+// --- English street without number tests ---
+
+func TestAddress_EnglishStreetNoNumber(t *testing.T) {
+	s := DefaultScanner(nil)
+	cases := []struct {
+		name  string
+		input string
+		want  string
+	}{
+		{"Fenian St", "Fenian St\nDublin 2, D02 AX07\nIreland", "Fenian St"},
+		{"Baker Street", "Baker Street\nLondon\nUnited Kingdom", "Baker Street"},
+		{"Oak Lane", "Oak Lane\nDublin 4\nIreland", "Oak Lane"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			entities := s.Scan(tc.input)
+			found := false
+			for _, e := range entities {
+				if e.Type == "ADDRESS" && e.Text == tc.want {
+					found = true
+					break
+				}
+			}
+			if !found {
+				t.Errorf("ADDRESS not found in %q: wanted %q, got %v", tc.input, tc.want, entities)
+			}
+		})
+	}
+}
+
+func TestAddress_EnglishStreetNoNumber_TrueNegatives(t *testing.T) {
+	s := DefaultScanner(nil)
+	// Should NOT match street-like patterns without address context
+	cases := []string{
+		"Main St is a popular name.",
+		"Wall Street is a movie.",
+	}
+	for _, input := range cases {
+		entities := s.Scan(input)
+		for _, e := range entities {
+			if e.Type == "ADDRESS" && (e.Text == "Main St" || e.Text == "Wall Street") {
+				t.Errorf("ADDRESS false positive in %q: got %v", input, e)
+			}
+		}
+	}
+}
+
+// --- Real Twitter/X invoice test ---
+
+func TestTwitterInvoice(t *testing.T) {
+	s := DefaultScanner(nil)
+	input := `Invoice
+Invoice number A49E63AA-0002
+Date of issue February 12, 2026
+Date due February 12, 2026
+Twitter International ULC
+Fenian St
+Dublin 2, D02 AX07
+Ireland
+VAT ID IE9834041A
+Bill to John Smith
+Austria
+contact@example.com
+€8.00 due February 12, 2026`
+
+	entities := s.Scan(input)
+	typeFound := make(map[string][]string)
+	for _, e := range entities {
+		typeFound[e.Type] = append(typeFound[e.Type], e.Text)
+	}
+
+	checks := []struct {
+		typ  string
+		desc string
+	}{
+		{"ID_NUMBER", "Invoice number / VAT ID"},
+		{"DATE", "Written dates"},
+		{"ORG", "Twitter International ULC"},
+		{"ADDRESS", "Eircode / Dublin district / Fenian St"},
+		{"PERSON", "Bill to name"},
+		{"EMAIL", "Email address"},
+		{"FINANCIAL", "EUR amount"},
+	}
+	for _, c := range checks {
+		if _, ok := typeFound[c.typ]; !ok {
+			t.Errorf("%s not detected (%s); entities: %v", c.typ, c.desc, entities)
+		}
+	}
+
+	t.Logf("Detected entities: %v", entities)
+}
+
+func TestAustrianGuertel(t *testing.T) {
+	s := DefaultScanner(nil)
+	cases := []struct {
+		name  string
+		input string
+	}{
+		{"Gürtel suffix", "Wohnt in Margaretengürtel 12"},
+		{"Markt suffix", "Treffen am Fleischmarkt 7"},
+		{"Graben compound", "Büro am Petersgraben 31"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			entities := s.Scan(tc.input)
+			found := false
+			for _, e := range entities {
+				if e.Type == "ADDRESS" {
+					found = true
+					break
+				}
+			}
+			if !found {
+				t.Errorf("ADDRESS not found in %q, got %v", tc.input, entities)
+			}
+		})
+	}
+}
+
+// --- BIC/SWIFT tests ---
+
+func TestBIC_TruePositives(t *testing.T) {
+	s := DefaultScanner(nil)
+	cases := []struct {
+		name  string
+		input string
+		want  string
+	}{
+		{"BIC context", "BIC: BKAUATWW", "BKAUATWW"},
+		{"SWIFT context", "SWIFT: GIBAATWWXXX", "GIBAATWWXXX"},
+		{"BIC/SWIFT", "BIC/SWIFT COBADEFFXXX", "COBADEFFXXX"},
+		{"BIC standalone AT", "Transfer via BKAUATWW bitte.", "BKAUATWW"},
+		{"BIC standalone DE", "Code: COBADEFF", "COBADEFF"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			entities := s.Scan(tc.input)
+			found := false
+			for _, e := range entities {
+				if e.Type == "FINANCIAL" && e.Text == tc.want {
+					found = true
+					break
+				}
+			}
+			if !found {
+				t.Errorf("BIC not found in %q: wanted %q, got %v", tc.input, tc.want, entities)
+			}
+		})
+	}
+}
+
+func TestBIC_TrueNegatives(t *testing.T) {
+	s := DefaultScanner(nil)
+	cases := []string{
+		"The word HELLO is common.",
+		"File FORMAT is important.",
+	}
+	for _, input := range cases {
+		entities := s.Scan(input)
+		for _, e := range entities {
+			if e.Type == "FINANCIAL" && len(e.Text) >= 8 && len(e.Text) <= 11 {
+				// Check if it looks like a BIC false positive
+				t.Errorf("BIC false positive in %q: got %v", input, e)
+			}
+		}
+	}
+}
+
+// --- European bare amount tests ---
+
+func TestFinancial_BareEuropeanAmounts(t *testing.T) {
+	s := DefaultScanner(nil)
+	cases := []struct {
+		name  string
+		input string
+		want  string
+	}{
+		// With thousand separator (no context needed)
+		{"thousands comma", "Summe 2.544,70 bezahlt", "2.544,70"},
+		{"thousands large", "Betrag: 1.250,00", "1.250,00"},
+		{"thousands 2229", "Zahlung 2.229,00 erhalten", "2.229,00"},
+		// Without separator but with financial context
+		{"bare small", "Rechnung: Gebühr 65,00 fällig", "65,00"},
+		{"bare medium", "E-Preis 94,70 pro Stück", "94,70"},
+		{"bare large", "Leistung 2229,00 gesamt", "2229,00"},
+		{"bare tax", "USt 20,00 Prozent", "20,00"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			entities := s.Scan(tc.input)
+			found := false
+			for _, e := range entities {
+				if e.Type == "FINANCIAL" && e.Text == tc.want {
+					found = true
+					break
+				}
+			}
+			if !found {
+				t.Errorf("FINANCIAL not found in %q: wanted %q, got %v", tc.input, tc.want, entities)
+			}
+		})
+	}
+}
+
+func TestFinancial_BareAmounts_TrueNegatives(t *testing.T) {
+	s := DefaultScanner(nil)
+	// Bare amounts without financial context should NOT be detected
+	cases := []string{
+		"The score is 65,00 points.",
+		"Temperature was 20,00 degrees.",
+	}
+	for _, input := range cases {
+		entities := s.Scan(input)
+		for _, e := range entities {
+			if e.Type == "FINANCIAL" {
+				t.Errorf("FINANCIAL false positive in %q: got %v", input, e)
+			}
+		}
+	}
+}
+
+// --- IBAN context-triggered test ---
+
+func TestIBAN_ContextTriggered(t *testing.T) {
+	s := DefaultScanner(nil)
+	cases := []struct {
+		name  string
+		input string
+	}{
+		{"IBAN prefix", "IBAN: DE89 3704 0044 0532 0130 00"},
+		{"IBAN no colon", "IBAN DE89 3704 0044 0532 0130 00"},
+		{"iban lowercase prefix", "iban: AT611904300234573201"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			entities := s.Scan(tc.input)
+			found := false
+			for _, e := range entities {
+				if e.Type == "IBAN" {
+					found = true
+					break
+				}
+			}
+			if !found {
+				t.Errorf("IBAN not found in %q, got %v", tc.input, entities)
+			}
+		})
+	}
+}
+
+// --- Driving school invoice test ---
+
+func TestDrivingSchoolInvoice(t *testing.T) {
+	s := DefaultScanner(nil)
+	input := `Rechnung
+Datum Menge Leistung USt% E-Preis G-Preis
+24.05.24 1 B - LÖWE 20,00 2229,00 2229,00
+27.11.24 1 Nichtantritt Theorie 20,00 65,00 65,00
+08.01.25 1 Verwaltungsabgabe 20,00 94,70 94,70
+Zahlungen
+2.544,70
+Datum Zahlung USt% Betrag
+20.02.25 von cremul-Datei 20,00 2.229,00
+IBAN: AT611904300234573201
+BIC: BKAUATWW`
+
+	entities := s.Scan(input)
+	typeFound := make(map[string][]string)
+	for _, e := range entities {
+		typeFound[e.Type] = append(typeFound[e.Type], e.Text)
+	}
+
+	checks := []struct {
+		typ  string
+		desc string
+	}{
+		{"FINANCIAL", "amounts (bare European and BIC)"},
+		{"IBAN", "IBAN"},
+	}
+	for _, c := range checks {
+		if _, ok := typeFound[c.typ]; !ok {
+			t.Errorf("%s not detected (%s); entities: %v", c.typ, c.desc, entities)
+		}
+	}
+
+	// Verify specific amounts
+	financials := typeFound["FINANCIAL"]
+	wantAmounts := []string{"2.544,70", "2.229,00"}
+	for _, w := range wantAmounts {
+		found := false
+		for _, f := range financials {
+			if f == w {
+				found = true
+				break
+			}
+		}
+		if !found {
+			t.Errorf("Amount %q not in FINANCIAL entities: %v", w, financials)
+		}
+	}
+
+	t.Logf("Detected entities: %v", entities)
 }
 
 // --- Benchmark ---

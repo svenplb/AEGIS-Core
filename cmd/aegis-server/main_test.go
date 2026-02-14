@@ -218,6 +218,25 @@ func TestCORSHeaders(t *testing.T) {
 	}
 }
 
+func TestCORSCustomOrigin(t *testing.T) {
+	// Set custom origin via env var
+	t.Setenv("AEGIS_CORS_ORIGINS", "https://app.example.com")
+
+	ts := newTestServer()
+	defer ts.Close()
+
+	resp, err := http.Get(ts.URL + "/health")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	defer resp.Body.Close()
+
+	origin := resp.Header.Get("Access-Control-Allow-Origin")
+	if origin != "https://app.example.com" {
+		t.Errorf("expected Access-Control-Allow-Origin 'https://app.example.com', got %q", origin)
+	}
+}
+
 func TestOptionsPreflightRequest(t *testing.T) {
 	ts := newTestServer()
 	defer ts.Close()

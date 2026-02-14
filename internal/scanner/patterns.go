@@ -198,6 +198,24 @@ func idNumberScanners() []Scanner {
 			"ID_NUMBER", 0.90,
 			WithExtractGroup(1),
 		),
+		// Invoice/order/receipt with qualifier: "Invoice number X", "Order no. X"
+		NewRegexScanner(
+			regexp.MustCompile(`(?i)(?:Invoice|Rechnung|Bill|Receipt|Order|Reference|Bestell|Auftrags)\s*(?:number|no\.?|num\.?|nr\.?|nummer|#)[:\s]+([A-Za-z0-9][\w.\-/]{2,})`),
+			"ID_NUMBER", 0.90,
+			WithExtractGroup(1),
+		),
+		// Invoice/order/receipt compound forms: "Rechnungsnummer X", "Beleg-Nr. X"
+		NewRegexScanner(
+			regexp.MustCompile(`(?i)(?:Rechnungsnummer|Rechnungs-?Nr\.?|Bestellnummer|Bestell-?Nr\.?|Auftragsnummer|Auftrags-?Nr\.?|Referenz-?Nr\.?|Beleg-?Nr\.?)[:\s]+([A-Za-z0-9][\w.\-/]{2,})`),
+			"ID_NUMBER", 0.90,
+			WithExtractGroup(1),
+		),
+		// Invoice/order with colon separator: "Invoice: X", "Reference: X"
+		NewRegexScanner(
+			regexp.MustCompile(`(?i)(?:Invoice|Rechnung|Bill|Receipt|Order|Reference|Beleg)\s*:\s*([A-Za-z0-9][\w.\-/]{2,})`),
+			"ID_NUMBER", 0.90,
+			WithExtractGroup(1),
+		),
 	}
 }
 
@@ -213,7 +231,7 @@ func orgScanners() []Scanner {
 	// Corporate suffixes (German)
 	corpDE := corpNamePart + `(?:` + sp + corpNamePart + `)*` + sp + `(?:GmbH|AG|SE|KG|OHG|KGaA|UG|e\.G\.|e\.V\.)\b`
 	// Corporate suffixes (International)
-	corpIntl := corpNamePart + `(?:` + sp + corpNamePart + `)*` + sp + `(?:Ltd|Inc|Corp|LLC|PLC|SA|SAS|SARL|SpA|SRL|BV|NV)\.?\b`
+	corpIntl := corpNamePart + `(?:` + sp + corpNamePart + `)*` + sp + `(?:Ltd|Inc|Corp|LLC|PLC|Plc|SA|SAS|SARL|SpA|SRL|BV|NV|ULC|DAC|LLP)\.?\b`
 	// German institutions: Universitätsklinikum/Uniklinik/Universität/Klinikum + Name
 	deInstitution := `(?:Universitätsklinikum|Uniklinik|Universität|Klinikum)` + sp + namePattern + `(?:` + sp + namePattern + `)*`
 	// Klinik + preposition + Name
@@ -291,6 +309,8 @@ func personScanners() []Scanner {
 		// German role triggers
 		`Antragsteller(?:in)?`, `Sachbearbeiter(?:in)?`, `Bearbeiter(?:in)?`,
 		`Konsiliarius`,
+		`Leiter(?:in)?`, `Geschäftsführer(?:in)?`, `Inhaber(?:in)?`,
+		`Direktor(?:in)?`, `Vorstand`, `Vorsitzende[r]?`,
 		// Titles (more specific first)
 		`Dott\.?\s?ssa`, `Dott\.?`, `Dra\.?`,
 		`Prof\.?`, `Dr\.?`,
@@ -320,6 +340,10 @@ func personScanners() []Scanner {
 	// Maiden name: "geb. Müller", "geboren Weber"
 	maidenPattern := `(?i:geb(?:oren(?:e)?)?\.)[ \t]+(` + namePattern + `)`
 
+	// Billing/invoice label → name (allows newline between label and name)
+	billingTrigger := `(?i:Bill\s+to|Billed\s+to|Invoice\s+to|Sold\s+to|Ship\s+to|Deliver\s+to|Attn\.?|Attention)`
+	billingPattern := billingTrigger + `[\s:]+(` + fullName + `)`
+
 	return []Scanner{
 		NewRegexScanner(
 			regexp.MustCompile(contextPattern),
@@ -334,6 +358,11 @@ func personScanners() []Scanner {
 		NewRegexScanner(
 			regexp.MustCompile(maidenPattern),
 			"PERSON", 0.85,
+			WithExtractGroup(1),
+		),
+		NewRegexScanner(
+			regexp.MustCompile(billingPattern),
+			"PERSON", 0.90,
 			WithExtractGroup(1),
 		),
 	}
@@ -374,7 +403,7 @@ func phoneScanners() []Scanner {
 	// International format with + prefix: +49, +43, +41, +33, etc.
 	// Supports separators: space, dash, dot, or none.
 	// Use [ \t] instead of \s to prevent matching across newlines.
-	intl := `\+(?:49|43|41|33|39|34|31|32|351|48|46|358|45|47|353|44)[ \t]?[\d][\d \t.\-]{6,14}\d`
+	intl := `\+(?:49|43|41|33|39|34|31|32|351|48|46|358|45|47|353|44)[\- \t]?(?:\(0\))?[\- \t]?[\d][\d \t.\-]{6,14}\d`
 
 	// Generic 00-prefix international
 	generic00 := `00\d{1,3}[ \t.\-]?\d[\d \t.\-]{6,14}\d`
@@ -393,12 +422,23 @@ func phoneScanners() []Scanner {
 
 func ibanScanners() []Scanner {
 	// Generic IBAN: 2 letters + 2 digits + 8-30 alphanumeric (with optional spaces/dashes).
-	pattern := `\b[A-Z]{2}\d{2}[\s\-]?[\dA-Z]{4}[\s\-]?[\dA-Z]{4}(?:[\s\-]?[\dA-Z]{4}){1,7}(?:[\s\-]?[\dA-Z]{1,4})?\b`
+	// Use [ \t] instead of \s to prevent matching across newlines.
+	pattern := `\b[A-Z]{2}\d{2}[ \t\-]?[\dA-Z]{4}[ \t\-]?[\dA-Z]{4}(?:[ \t\-]?[\dA-Z]{4}){1,7}(?:[ \t\-]?[\dA-Z]{1,4})?\b`
+
+	// Context-triggered: "IBAN: AT61 1904 ..." or "IBAN AT61..."
+	// Allows newline between "IBAN:" and the number, but not within the number itself.
+	contextPattern := `(?i)IBAN[:\s]+([A-Z]{2}\d{2}[ \t\-]?[\dA-Z]{4}[ \t\-]?[\dA-Z]{4}(?:[ \t\-]?[\dA-Z]{4}){1,7}(?:[ \t\-]?[\dA-Z]{1,4})?)`
 
 	return []Scanner{
 		NewRegexScanner(
 			regexp.MustCompile(pattern),
 			"IBAN", 0.99,
+			WithValidator(validateIBAN),
+		),
+		NewRegexScanner(
+			regexp.MustCompile(contextPattern),
+			"IBAN", 0.99,
+			WithExtractGroup(1),
 			WithValidator(validateIBAN),
 		),
 	}
@@ -511,8 +551,27 @@ func dateScanners() []Scanner {
 	// DD.MM.YYYY, DD/MM/YYYY, DD-MM-YYYY
 	dateCore := `\b(?:0[1-9]|[12]\d|3[01])[./\-](?:0[1-9]|1[0-2])[./\-](?:19|20)\d{2}\b`
 
+	// Written English dates: "February 12, 2026" or "Feb 12, 2026"
+	enMonths := `(?:January|February|March|April|May|June|July|August|September|October|November|December|Jan|Feb|Mar|Apr|Jun|Jul|Aug|Sep|Sept|Oct|Nov|Dec)\.?`
+	enDateWritten := enMonths + `[ \t]+\d{1,2},?[ \t]+(?:19|20)\d{2}`
+
+	// Written German dates: "12. Februar 2026", "1. März 1990"
+	deMonths := `(?:Januar|Februar|März|April|Mai|Juni|Juli|August|September|Oktober|November|Dezember)`
+	deDateWritten := `\d{1,2}\.[ \t]+` + deMonths + `[ \t]+(?:19|20)\d{2}`
+
+	// Written French dates: "12 février 2026"
+	frMonths := `(?:janvier|février|mars|avril|mai|juin|juillet|août|septembre|octobre|novembre|décembre)`
+	frDateWritten := `\d{1,2}[ \t]+` + frMonths + `[ \t]+(?:19|20)\d{2}`
+
+	// ISO format: YYYY-MM-DD
+	dateISO := `\b(?:19|20)\d{2}-(?:0[1-9]|1[0-2])-(?:0[1-9]|[12]\d|3[01])\b`
+
 	return []Scanner{
 		NewRegexScanner(regexp.MustCompile(dateCore), "DATE", 0.90),
+		NewRegexScanner(regexp.MustCompile(enDateWritten), "DATE", 0.90),
+		NewRegexScanner(regexp.MustCompile(deDateWritten), "DATE", 0.90),
+		NewRegexScanner(regexp.MustCompile(frDateWritten), "DATE", 0.85),
+		NewRegexScanner(regexp.MustCompile(dateISO), "DATE", 0.90),
 	}
 }
 
@@ -572,11 +631,43 @@ func financialScanners() []Scanner {
 	// CHF: CHF 1'500.00 or CHF 1500.00
 	chf := `CHF\s?\d{1,3}(?:['\x{2019}]\d{3})*\.\d{2}`
 
+	// EUR international format (dot decimal): €8.00, €1,000.00 (used in Ireland, English contexts)
+	eurDotPrefix := `€\s?\d{1,3}(?:,\d{3})*\.\d{2}`
+	eurDotSuffix := `\d{1,3}(?:,\d{3})*\.\d{2}\s?€`
+
+	// European amounts WITH thousand separator but no symbol: 2.544,70, 1.250,00
+	// Distinctive enough to not need context (dot-thousand + comma-decimal + exactly 2 decimals).
+	eurBareThousands := `\b\d{1,3}(?:\.\d{3})+,\d{2}\b`
+
+	// European amounts WITHOUT symbol and without thousand separator: 65,00, 94,70, 2229,00
+	// Requires financial context nearby to avoid false positives.
+	eurBare := `\b\d{2,6},\d{2}\b`
+
+	// BIC/SWIFT codes (context-triggered): BKAUATWW, GIBAATWWXXX
+	bicContext := `(?i)(?:BIC|SWIFT|BIC/SWIFT)[:\s/]+([A-Z]{6}[A-Z0-9]{2}(?:[A-Z0-9]{3})?)`
+
+	// BIC/SWIFT standalone with known EU country codes
+	bicStandalone := `\b[A-Z]{4}(?:AT|DE|CH|FR|IT|ES|NL|BE|IE|GB|LU|PT|PL|CZ|HU|SK|SI|HR|BG|RO|LT|LV|EE|FI|SE|DK|NO|LI|MT|CY|GR)[A-Z0-9]{2}(?:[A-Z0-9]{3})?\b`
+
 	return []Scanner{
 		NewRegexScanner(regexp.MustCompile(eurPrefix), "FINANCIAL", 0.90),
 		NewRegexScanner(regexp.MustCompile(eurSuffix), "FINANCIAL", 0.90),
+		NewRegexScanner(regexp.MustCompile(eurDotPrefix), "FINANCIAL", 0.90),
+		NewRegexScanner(regexp.MustCompile(eurDotSuffix), "FINANCIAL", 0.90),
 		NewRegexScanner(regexp.MustCompile(usdGbp), "FINANCIAL", 0.90),
 		NewRegexScanner(regexp.MustCompile(chf), "FINANCIAL", 0.90),
+		NewRegexScanner(regexp.MustCompile(eurBareThousands), "FINANCIAL", 0.85),
+		NewRegexScanner(
+			regexp.MustCompile(eurBare),
+			"FINANCIAL", 0.75,
+			WithContextValidator(financialContext),
+		),
+		NewRegexScanner(
+			regexp.MustCompile(bicContext),
+			"FINANCIAL", 0.95,
+			WithExtractGroup(1),
+		),
+		NewRegexScanner(regexp.MustCompile(bicStandalone), "FINANCIAL", 0.85),
 	}
 }
 
@@ -585,23 +676,30 @@ func financialScanners() []Scanner {
 func addressScanners() []Scanner {
 	// Use [ \t] instead of \s to prevent matching across newlines.
 
-	// German: Straße/Str./Weg/Platz/Allee/Gasse + Hausnummer (suffix form: Gartenstraße 27)
-	deStreetSuffix := `(?:[A-ZÄÖÜ][a-zäöüß]+(?:straße|str\.|weg|platz|allee|gasse|ring|damm|ufer|kai))[ \t]+\d{1,4}[a-zA-Z]?`
+	// House number with optional letter and Austrian/Swiss apartment notation (5/2/3)
+	houseNum := `\d{1,4}[a-zA-Z]?(?:/\d{1,4})*`
 
-	// German: separate-word street name (Berliner Straße 15)
-	deStreetSep := namePattern + `(?:[ \t]+` + namePattern + `)?[ \t]+(?:Straße|Str\.|Weg|Platz|Allee|Gasse|Ring|Damm|Ufer|Kai)[ \t]+\d{1,4}[a-zA-Z]?`
+	// German/Austrian street suffixes (compound form: Gartenstraße, Margaretengürtel, Fleischmarkt)
+	deSuffixes := `(?:straße|str\.|weg|platz|allee|gasse|ring|damm|ufer|kai|gürtel|markt|graben|steig|steg|berg|promenade|zeile|hof|siedlung|anger)`
+
+	// German: suffix form (Gartenstraße 27, Margaretengürtel 5)
+	deStreetSuffix := `(?:[A-ZÄÖÜ][a-zäöüß]+` + deSuffixes + `)[ \t]+` + houseNum
+
+	// German: separate-word street name (Berliner Straße 15, Hoher Markt 3)
+	deSepWords := `(?:Straße|Str\.|Weg|Platz|Allee|Gasse|Ring|Damm|Ufer|Kai|Gürtel|Markt|Graben|Steig|Steg|Berg|Promenade|Zeile|Hof|Siedlung|Anger)`
+	deStreetSep := namePattern + `(?:[ \t]+` + namePattern + `)?[ \t]+` + deSepWords + `[ \t]+` + houseNum
 
 	// German: hyphenated street names ending in suffix (Theodor-Stern-Kai 7)
-	deStreetHyphen := `(?:[A-ZÄÖÜ][a-zäöüß]+-)+(?:Straße|Str|Weg|Platz|Allee|Gasse|Ring|Damm|Ufer|Kai)[ \t]+\d{1,4}[a-zA-Z]?`
+	deStreetHyphen := `(?:[A-ZÄÖÜ][a-zäöüß]+-)+(?:Straße|Str|Weg|Platz|Allee|Gasse|Ring|Damm|Ufer|Kai|Gürtel|Markt|Graben|Steig|Berg|Promenade|Zeile|Hof)[ \t]+` + houseNum
 
 	// City pattern: "Frankfurt", "Bad Homburg", "Frankfurt am Main"
 	cityWord := `[A-ZÄÖÜ][a-zäöüß]+`
 	cityPattern := cityWord + `(?:[ \t]+` + cityWord + `|[ \t]+[a-z]+[ \t]+` + cityWord + `)?`
 
-	// German with postcode + city (use [ \t] to prevent cross-line matching)
-	deWithCitySuffix := deStreetSuffix + `(?:,[ \t]*\d{5}[ \t]+` + cityPattern + `)?`
-	deWithCitySep := deStreetSep + `(?:,[ \t]*\d{5}[ \t]+` + cityPattern + `)?`
-	deWithCityHyphen := deStreetHyphen + `(?:,[ \t]*\d{5}[ \t]+` + cityPattern + `)?`
+	// German/Austrian/Swiss with postcode + city (\d{4,5} supports AT 4-digit and DE 5-digit)
+	deWithCitySuffix := deStreetSuffix + `(?:,[ \t]*\d{4,5}[ \t]+` + cityPattern + `)?`
+	deWithCitySep := deStreetSep + `(?:,[ \t]*\d{4,5}[ \t]+` + cityPattern + `)?`
+	deWithCityHyphen := deStreetHyphen + `(?:,[ \t]*\d{4,5}[ \t]+` + cityPattern + `)?`
 
 	// French: rue/avenue/boulevard + number
 	frStreet := `\d{1,4},?[ \t]+(?:rue|avenue|boulevard|place|chemin|impasse)[ \t]+(?:de[ \t]+(?:la[ \t]+)?|du[ \t]+|des[ \t]+|l')?[A-ZÀ-Ü][a-zà-ÿ]+(?:[ \t]+[A-ZÀ-Ü][a-zà-ÿ]+)*`
@@ -615,6 +713,37 @@ func addressScanners() []Scanner {
 	// Dutch: straat/laan/weg/plein/gracht/dreef + number
 	nlStreet := `[A-ZÄÖÜ][a-zäöüß]+(?:straat|laan|weg|plein|gracht|kade|singel|dreef)[ \t]+\d{1,4}`
 
+	// --- US/English address patterns ---
+
+	// US street type suffixes
+	usStreetType := `(?:Ave(?:nue)?|Blvd|Boulevard|Cir(?:cle)?|Ct|Court|Dr(?:ive)?|Expy|Expressway|Hwy|Highway|Ln|Lane|Pkwy|Parkway|Pl(?:ace)?|Rd|Road|St(?:reet)?|Ter(?:r(?:ace)?)?|Trl|Trail|Way)\.?`
+
+	// Optional directional prefix/suffix (N, S, E, W, NE, NW, SE, SW)
+	usDir := `(?:[NESW]\.?|NE|NW|SE|SW)`
+
+	// US street: 440 N Barranca Ave #4133
+	usStreet := `\d{1,5}[ \t]+(?:` + usDir + `[ \t]+)?[A-Z][a-z]+(?:[ \t]+[A-Z][a-z]+)*[ \t]+` + usStreetType + `(?:[ \t]+` + usDir + `)?(?:[ \t]+(?:#|Apt\.?|Suite|Ste\.?|Unit|Fl\.?)[ \t]*[A-Za-z0-9]+)?`
+
+	// US state abbreviations
+	usStateAbbr := `(?:AL|AK|AZ|AR|CA|CO|CT|DE|FL|GA|HI|ID|IL|IN|IA|KS|KY|LA|ME|MD|MA|MI|MN|MS|MO|MT|NE|NV|NH|NJ|NM|NY|NC|ND|OH|OK|OR|PA|RI|SC|SD|TN|TX|UT|VT|VA|WA|WV|WI|WY|DC)`
+
+	// US state full names
+	usStateNames := `(?:Alabama|Alaska|Arizona|Arkansas|California|Colorado|Connecticut|Delaware|Florida|Georgia|Hawaii|Idaho|Illinois|Indiana|Iowa|Kansas|Kentucky|Louisiana|Maine|Maryland|Massachusetts|Michigan|Minnesota|Mississippi|Missouri|Montana|Nebraska|Nevada|New[ \t]+Hampshire|New[ \t]+Jersey|New[ \t]+Mexico|New[ \t]+York|North[ \t]+Carolina|North[ \t]+Dakota|Ohio|Oklahoma|Oregon|Pennsylvania|Rhode[ \t]+Island|South[ \t]+Carolina|South[ \t]+Dakota|Tennessee|Texas|Utah|Vermont|Virginia|Washington|West[ \t]+Virginia|Wisconsin|Wyoming|District[ \t]+of[ \t]+Columbia)`
+
+	// US city + state + ZIP: Covina, California 91723 or Covina, CA 91723-1234
+	usCityStateZip := `[A-Z][a-z]+(?:[ \t]+[A-Z][a-z]+)*,[ \t]+(?:` + usStateAbbr + `|` + usStateNames + `)[ \t]+\d{5}(?:-\d{4})?`
+
+	// Irish Eircode: D02 AX07, A65 F4E2, T12 AB34
+	// Routing key: specific letter + digit + (digit|W), unique ID: 4 alphanumeric
+	eircode := `\b[ACDEFHKNPRTVWXY]\d[0-9W][ \t]+[A-Z0-9]{4}\b`
+
+	// Dublin postal district: "Dublin 2", "Dublin 24", "Dublin 6W"
+	dublinDistrict := `Dublin[ \t]+(?:\d{1,2}|6W)\b`
+
+	// English/Irish street name without house number (context-validated, line-anchored)
+	// Catches "Fenian St", "Baker Street" near other address components
+	enStreetNoNum := `(?m)^([A-Z][a-z]+(?:[ \t]+[A-Z][a-z]+){0,2}[ \t]+` + usStreetType + `)[ \t]*$`
+
 	return []Scanner{
 		NewRegexScanner(regexp.MustCompile(deWithCitySuffix), "ADDRESS", 0.85),
 		NewRegexScanner(regexp.MustCompile(deWithCitySep), "ADDRESS", 0.85),
@@ -623,7 +752,116 @@ func addressScanners() []Scanner {
 		NewRegexScanner(regexp.MustCompile(itStreet), "ADDRESS", 0.85),
 		NewRegexScanner(regexp.MustCompile(esStreet), "ADDRESS", 0.85),
 		NewRegexScanner(regexp.MustCompile(nlStreet), "ADDRESS", 0.85),
+		NewRegexScanner(regexp.MustCompile(usStreet), "ADDRESS", 0.85),
+		NewRegexScanner(regexp.MustCompile(usCityStateZip), "ADDRESS", 0.85),
+		NewRegexScanner(regexp.MustCompile(eircode), "ADDRESS", 0.90),
+		NewRegexScanner(regexp.MustCompile(dublinDistrict), "ADDRESS", 0.85),
+		// Standalone European postcode + city: "1100 Wien", "10115 Berlin", "8001 Zürich"
+		// AT/CH: 4 digits (1xxx-9xxx), DE: 5 digits
+		NewRegexScanner(
+			regexp.MustCompile(`\b\d{4,5}[ \t]+`+cityPattern),
+			"ADDRESS", 0.80,
+			WithContextValidator(postcodeNearCountry),
+		),
+		// Generic street: CapWord(s) + house number on its own line.
+		// Uses (?m) so ^ and $ match line boundaries.
+		// Only matches when a postcode, country, or known street suffix appears nearby.
+		// Catches streets without standard suffixes (e.g. "Am Tabor 5", "Spittelau 3").
+		NewRegexScanner(
+			regexp.MustCompile(`(?m)^([A-ZÄÖÜ][A-Za-zäöüßÀ-ÿ]+(?:[ \t]+[A-Za-zäöüßÀ-ÿ]+){0,3}[ \t]+`+houseNum+`)[ \t]*$`),
+			"ADDRESS", 0.75,
+			WithExtractGroup(1),
+			WithContextValidator(postcodeNearCountry),
+		),
+		// English/Irish street name without number, context-validated
+		NewRegexScanner(
+			regexp.MustCompile(enStreetNoNum),
+			"ADDRESS", 0.75,
+			WithExtractGroup(1),
+			WithContextValidator(postcodeNearCountry),
+		),
 	}
+}
+
+// postcodeNearCountry boosts confidence by checking if a country name appears
+// within ~200 bytes of the postcode match (common in structured addresses).
+// If no country is found, the match is still valid but the base score applies.
+func postcodeNearCountry(fullText string, start, end int) bool {
+	// Look within 200 bytes around the match for country/address context.
+	from := start - 200
+	if from < 0 {
+		from = 0
+	}
+	to := end + 200
+	if to > len(fullText) {
+		to = len(fullText)
+	}
+	window := strings.ToLower(fullText[from:to])
+
+	// Country names that confirm this is an address
+	countries := []string{
+		"austria", "österreich", "germany", "deutschland",
+		"switzerland", "schweiz", "suisse", "svizzera",
+		"netherlands", "niederlande", "belgium", "belgien",
+		"france", "frankreich", "italy", "italien",
+		"spain", "spanien", "portugal", "poland", "polen",
+		"czech", "tschechien", "hungary", "ungarn",
+		"ireland", "éire", "united kingdom",
+		"dublin", "london", "edinburgh",
+	}
+	for _, c := range countries {
+		if strings.Contains(window, c) {
+			return true
+		}
+	}
+
+	// Also match if there's a street-like line nearby (address block context)
+	streetIndicators := []string{
+		"straße", "str.", "gasse", "weg ", "platz",
+		"allee", "ring ", "damm", "gürtel",
+		"ave ", "avenue", "street", "road", "blvd",
+		"rue ", "via ", "calle",
+	}
+	for _, s := range streetIndicators {
+		if strings.Contains(window, s) {
+			return true
+		}
+	}
+
+	return false
+}
+
+// financialContext checks if a bare numeric amount (e.g. "65,00") appears
+// near financial keywords, confirming it's likely a price/amount.
+func financialContext(fullText string, start, end int) bool {
+	from := start - 300
+	if from < 0 {
+		from = 0
+	}
+	to := end + 300
+	if to > len(fullText) {
+		to = len(fullText)
+	}
+	window := strings.ToLower(fullText[from:to])
+
+	keywords := []string{
+		// German
+		"preis", "e-preis", "g-preis", "betrag", "summe", "gesamt",
+		"netto", "brutto", "mwst", "ust", "rechnung", "zahlung",
+		"rabatt", "skonto", "gebühr", "kosten", "honorar", "entgelt",
+		"leistung", "rechnungsbetrag", "gesamtbetrag", "endbetrag",
+		// English
+		"price", "amount", "total", "subtotal", "tax", "payment",
+		"invoice", "receipt", "fee", "charge", "cost", "balance",
+		// Symbols/codes
+		"€", "eur",
+	}
+	for _, k := range keywords {
+		if strings.Contains(window, k) {
+			return true
+		}
+	}
+	return false
 }
 
 // --- SECRET ---
