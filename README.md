@@ -1,4 +1,4 @@
-# aegis-core
+# AEGIS Core
 
 PII detection and redaction engine written in Go. Scans text for personally identifiable information using regex-based pattern matching, replaces matches with deterministic tokens, and can restore the original text from those tokens.
 
