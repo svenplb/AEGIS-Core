@@ -1,7 +1,6 @@
 # AEGIS Core
   <p align="center">
-    <img width="584" height="202" alt="image"
-  src="https://github.com/user-attachments/assets/4da5e539-4891-47b7-95f0-23d384f79144" />
+   <img width="703" height="778" alt="image" src="https://github.com/user-attachments/assets/a34b84c7-3684-4d17-bb19-738a6835e647" />
   </p>
 
 PII detection and redaction engine written in Go. Scans text for personally identifiable information using regex-based pattern matching, replaces matches with deterministic tokens, and can restore the original text from those tokens.
