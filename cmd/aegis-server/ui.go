@@ -105,6 +105,7 @@ const uiHTML = `<!DOCTYPE html>
   }
   .hdr-btn:hover{background:var(--bg-alt);color:var(--ink-2);border-color:var(--brd)}
   .hdr-btn svg{width:15px;height:15px}
+  .hdr-btn-text{width:auto;padding:0 0.6rem;font-size:0.7rem;font-weight:600;font-family:var(--sans)}
   .sun-i,.moon-i{display:none}
   [data-theme="light"] .sun-i{display:block}
   [data-theme="dark"] .moon-i{display:block}
@@ -276,6 +277,7 @@ const uiHTML = `<!DOCTYPE html>
   <div class="hdr">
     <span class="hdr-name">Aegis<span>/core</span></span>
     <span class="hdr-spacer"></span>
+    <button class="hdr-btn hdr-btn-text" id="clear-btn" aria-label="Clear all">Clear</button>
     <button class="hdr-btn" id="theme-btn" aria-label="Toggle theme">
       <svg class="sun-i" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"><circle cx="8" cy="8" r="3"/><path d="M8 1.8v1M8 13.2v1M2.2 8h1M12.8 8h1M3.8 3.8l.7.7M11.5 11.5l.7.7M3.8 12.2l.7-.7M11.5 4.5l.7-.7"/></svg>
       <svg class="moon-i" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M13.2 9.5A5.2 5.2 0 016.5 2.8a6 6 0 106.7 6.7z"/></svg>
@@ -343,6 +345,17 @@ const uiHTML = `<!DOCTYPE html>
   var btnS=document.getElementById("btn-scan");
   var btnR=document.getElementById("btn-redact");
   var liveInd=document.getElementById("live-ind");
+  var emptyHTML=output.innerHTML;
+
+  function resetOutput(){clr(output);output.innerHTML=emptyHTML}
+
+  document.getElementById("clear-btn").onclick=function(){
+    inputEl.value="";resetOutput();inputEl.focus();
+  };
+
+  inputEl.addEventListener("input",function(){
+    if(!inputEl.value.trim())resetOutput();
+  });
 
   function el(t,c,txt){var e=document.createElement(t);if(c)e.className=c;if(txt!==undefined)e.textContent=txt;return e}
   function clr(n){while(n.firstChild)n.removeChild(n.firstChild)}

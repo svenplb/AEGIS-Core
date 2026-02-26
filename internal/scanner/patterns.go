@@ -345,19 +345,99 @@ func idNumberScanners() []Scanner {
 		),
 		// Invoice/order/receipt with qualifier: "Invoice number X", "Order no. X"
 		NewRegexScanner(
-			regexp.MustCompile(`(?i)(?:Invoice|Rechnung|Bill|Receipt|Order|Reference|Bestell|Auftrags)[ \t]*(?:number|no\.?|num\.?|nr\.?|nummer|#)[: \t]+([A-Za-z0-9][\w.\-/]{2,})`),
+			regexp.MustCompile(`(?i)(?:`+
+			// DE
+			`Invoice|Rechnung|Bill|Receipt|Order|Reference|Bestell|Auftrags`+
+			`|Angebot|Auftragsbestätigung|Lieferschein|Gutschrift|Mahnung|Kostenvoranschlag`+
+			// EN
+			`|Quotation|Estimate|Delivery[ \t]+Note|Credit[ \t]+Note|Proforma|Purchase[ \t]+Order|Debit[ \t]+Note`+
+			// FR
+			`|Facture|Devis|Offre|Avoir|Bon[ \t]+de[ \t]+livraison|Note[ \t]+de[ \t]+crédit|Bon[ \t]+de[ \t]+commande`+
+			// IT
+			`|Fattura|Preventivo|Offerta|DDT|Nota[ \t]+di[ \t]+credito|Bolla[ \t]+di[ \t]+consegna|Sollecito`+
+			// ES
+			`|Presupuesto|Albarán|Nota[ \t]+de[ \t]+crédito|Nota[ \t]+de[ \t]+entrega|Orden[ \t]+de[ \t]+compra|Abono`+
+			// NL
+			`|Offerte|Creditnota|Pakbon|Afleverbon|Aanmaning|Orderbevestiging`+
+			// PL
+			`|Oferta|Zamówienie|Wycena|Nota[ \t]+kredytowa|Faktura[ \t]+korygująca`+
+			// SE
+			`|Offert|Följesedel|Kreditnota|Kreditfaktura|Påminnelse`+
+			// PT
+			`|Orçamento|Fatura|Nota[ \t]+de[ \t]+crédito`+
+			// DK/NO
+			`|Tilbud|Faktura|Kreditnota|Følgeseddel|Purring|Inkassokrav`+
+			// FI
+			`|Tarjous|Lasku|Hyvityslasku|Lähetysluettelo|Maksumuistutus`+
+			// CZ/SK
+			`|Nabídka|Dodací[ \t]+list|Dobropis|Upomínka|Ponuka|Dodací[ \t]+list|Ťarchopis`+
+			// HU
+			`|Ajánlat|Számla|Jóváírás|Szállítólevél|Fizetési[ \t]+felszólítás`+
+			// RO
+			`|Ofertă|Factură|Notă[ \t]+de[ \t]+credit|Aviz[ \t]+de[ \t]+expediție|Somație`+
+			// BG
+			`|Оферта|Фактура|Кредитно[ \t]+известие|Товарителница`+
+			// HR
+			`|Ponuda|Račun|Otpremnica|Odobrenje`+
+			// SI
+			`|Ponudba|Račun|Dobavnica|Dobropis`+
+			// EL
+			`|Προσφορά|Τιμολόγιο|Πιστωτικό[ \t]+σημείωμα|Δελτίο[ \t]+αποστολής`+
+			// EE
+			`|Pakkumine|Arve|Kreeditarve|Saateleht`+
+			// LV
+			`|Piedāvājums|Rēķins|Kredītrēķins|Pavadzīme`+
+			// LT
+			`|Pasiūlymas|Sąskaita|Kreditinė[ \t]+sąskaita|Važtaraštis`+
+			`)[ \t]*(?:number|no\.?|num\.?|nr\.?|nummer|nº\.?|n°\.?|číslo|szám|#)[: \t]+([A-Za-z0-9][\w.\-/]{2,})`),
 			"ID_NUMBER", 0.90,
 			WithExtractGroup(1),
 		),
 		// Invoice/order/receipt compound forms: "Rechnungsnummer X", "Beleg-Nr. X"
 		NewRegexScanner(
-			regexp.MustCompile(`(?i)(?:Rechnungsnummer|Rechnungs-?Nr\.?|Bestellnummer|Bestell-?Nr\.?|Auftragsnummer|Auftrags-?Nr\.?|Referenz-?Nr\.?|Beleg-?Nr\.?)[: \t]+([A-Za-z0-9][\w.\-/]{2,})`),
+			regexp.MustCompile(`(?i)(?:`+
+			// DE compound forms
+			`Rechnungsnummer|Rechnungs-?Nr\.?|Bestellnummer|Bestell-?Nr\.?`+
+			`|Auftragsnummer|Auftrags-?Nr\.?|Referenz-?Nr\.?|Beleg-?Nr\.?`+
+			`|Angebots-?Nr\.?|Angebotsnummer|Lieferschein-?Nr\.?|Lieferscheinnummer`+
+			`|Gutschrift-?Nr\.?|Gutschrifts?nummer|Mahnungs?-?Nr\.?|Auftragsbestätigungs?-?Nr\.?`+
+			// NL compound forms
+			`|Factuurnummer|Factuur-?nr\.?|Offertenummer|Offerte-?nr\.?|Bestelnummer|Bestel-?nr\.?`+
+			`|Creditnotanummer|Creditnota-?nr\.?|Ordernummer|Order-?nr\.?`+
+			// SE/DK/NO compound forms
+			`|Fakturanummer|Faktura-?nr\.?|Offertnummer|Offert-?nr\.?|Ordernummer|Order-?nr\.?`+
+			`|Kreditnotanummer|Kreditnota-?nr\.?|Följesedelsnummer|Följesedels-?nr\.?`+
+			`)[: \t]+([A-Za-z0-9][\w.\-/]{2,})`),
 			"ID_NUMBER", 0.90,
 			WithExtractGroup(1),
 		),
 		// Invoice/order with colon separator: "Invoice: X", "Reference: X"
 		NewRegexScanner(
-			regexp.MustCompile(`(?i)(?:Invoice|Rechnung|Bill|Receipt|Order|Reference|Beleg)[ \t]*:[ \t]*([A-Za-z0-9][\w.\-/]{2,})`),
+			regexp.MustCompile(`(?i)(?:`+
+			`Invoice|Rechnung|Bill|Receipt|Order|Reference|Beleg`+
+			`|Angebot|Auftragsbestätigung|Lieferschein|Gutschrift|Mahnung`+
+			`|Quotation|Estimate|Credit[ \t]+Note|Debit[ \t]+Note`+
+			`|Facture|Devis|Offre|Avoir|Sollecito|Preventivo|Offerta|DDT`+
+			`|Presupuesto|Albarán|Abono|Offerte|Creditnota|Pakbon|Aanmaning`+
+			`|Oferta|Zamówienie|Offert|Kreditnota|Følgeseddel|Följesedel`+
+			`|Orçamento|Fatura|Tilbud|Faktura|Påminnelse|Purring|Inkassokrav`+
+			// FI
+			`|Tarjous|Lasku|Hyvityslasku|Maksumuistutus`+
+			// CZ/SK
+			`|Nabídka|Dobropis|Upomínka|Ponuka`+
+			// HU
+			`|Ajánlat|Számla|Jóváírás|Szállítólevél`+
+			// RO
+			`|Ofertă|Factură|Somație`+
+			// BG
+			`|Оферта|Фактура`+
+			// HR/SI
+			`|Ponuda|Račun|Otpremnica|Odobrenje|Ponudba|Dobavnica|Dobropis`+
+			// EL
+			`|Προσφορά|Τιμολόγιο`+
+			// EE/LV/LT
+			`|Pakkumine|Arve|Kreeditarve|Piedāvājums|Rēķins|Pasiūlymas|Sąskaita`+
+			`)[ \t]*:[ \t]*([A-Za-z0-9][\w.\-/]{2,})`),
 			"ID_NUMBER", 0.90,
 			WithExtractGroup(1),
 		),
@@ -376,13 +456,13 @@ func idNumberScanners() []Scanner {
 		),
 		// Dutch reference: "Referentienummer: NL-2026-5678", "Factuurnummer: X"
 		NewRegexScanner(
-			regexp.MustCompile(`(?i)(?:Referentienummer|Referentie-?nr\.?|Factuurnummer|Factuur-?nr\.?|Kenmerk)[:\s]+([A-Za-z0-9][\w.\-/]{2,})`),
+			regexp.MustCompile(`(?i)(?:Referentienummer|Referentie-?nr\.?|Factuurnummer|Factuur-?nr\.?|Kenmerk)[: \t]+([A-Za-z0-9][\w.\-/]{2,})`),
 			"ID_NUMBER", 0.90,
 			WithExtractGroup(1),
 		),
 		// German insurance/policy: "Versicherungsschein: WS-2026-887654", "Polizzennummer: X", "Aktenzeichen: X"
 		NewRegexScanner(
-			regexp.MustCompile(`(?i)(?:Versicherungsschein|Polizzen?-?(?:nummer|nr\.?)|Aktenzeichen|Vertrags?-?(?:nummer|nr\.?)|Schadens?-?(?:nummer|nr\.?))[:\s]+([A-Za-z0-9][\w.\-/]{2,})`),
+			regexp.MustCompile(`(?i)(?:Versicherungsschein|Polizzen?-?(?:nummer|nr\.?)|Aktenzeichen|Vertrags?-?(?:nummer|nr\.?)|Schadens?-?(?:nummer|nr\.?))[: \t]+([A-Za-z0-9][\w.\-/]{2,})`),
 			"ID_NUMBER", 0.90,
 			WithExtractGroup(1),
 		),
@@ -392,9 +472,13 @@ func idNumberScanners() []Scanner {
 			"ID_NUMBER", 0.90,
 			WithExtractGroup(1),
 		),
-		// "Invoice XXX-YYYY-ZZZZ" (keyword + structured reference ID directly)
+		// "Invoice XXX-YYYY-ZZZZ" or "Rechnung 2026-001" (keyword + structured ID directly)
 		NewRegexScanner(
-			regexp.MustCompile(`(?i)(?:Invoice|Rechnung|Facture|Fattura|Factuur)[ \t]+([A-Z]{2,4}-\d{4}-\d{4,6})\b`),
+			regexp.MustCompile(`(?i)(?:`+
+				`Invoice|Rechnung|Facture|Fattura|Factuur|Faktura|Fatura`+
+				`|Angebot|Lieferschein|Gutschrift|Mahnung|Auftragsbestätigung`+
+				`|Quotation|Estimate|Offerte|Offert|Devis|Preventivo|Presupuesto|Tilbud|Orçamento`+
+				`)[ \t]+([A-Za-z0-9]{2,4}[\-/]\d{2,6}(?:[\-/]\d{2,6})?)\b`),
 			"ID_NUMBER", 0.90,
 			WithExtractGroup(1),
 		),
@@ -867,8 +951,68 @@ func dateScanners() []Scanner {
 	ptMonths := `(?:janeiro|fevereiro|março|abril|maio|junho|julho|agosto|setembro|outubro|novembro|dezembro)`
 	ptDateWritten := `\d{1,2}[ \t]+(?:de[ \t]+)?` + ptMonths + `[ \t]+(?:de[ \t]+)?(?:19|20)\d{2}`
 
-	// All month names across supported languages.
-	allMonths := `(?:` + enMonths + `|` + deMonths + `|` + frMonths + `|` + esMonths + `|` + itMonths + `|` + nlMonths + `|` + plMonths + `|` + seMonths + `|` + ptMonths + `)`
+	// Written Czech dates: "12. února 2026"
+	czMonths := `(?:ledna|února|března|dubna|května|června|července|srpna|září|října|listopadu|prosince|leden|únor|březen|duben|květen|červen|červenec|srpen|říjen|listopad|prosinec)`
+	czDateWritten := `\d{1,2}\.?[ \t]+` + czMonths + `[ \t]+(?:19|20)\d{2}`
+
+	// Written Slovak dates: "12. februára 2026"
+	skMonths := `(?:januára?|februára?|marca?|apríla?|mája?|júna?|júla?|augusta?|septembra?|októbra?|novembra?|decembra?|január|február|marec|apríl|máj|jún|júl|august|september|október|november|december)`
+	skDateWritten := `\d{1,2}\.?[ \t]+` + skMonths + `[ \t]+(?:19|20)\d{2}`
+
+	// Written Hungarian dates: "2026. február 12." (year first!)
+	huMonths := `(?:január|február|március|április|május|június|július|augusztus|szeptember|október|november|december)`
+	huDateWritten := `(?:19|20)\d{2}\.?[ \t]+` + huMonths + `[ \t]+\d{1,2}\.?`
+
+	// Written Romanian dates: "12 februarie 2026"
+	roMonths := `(?:ianuarie|februarie|martie|aprilie|mai|iunie|iulie|august|septembrie|octombrie|noiembrie|decembrie)`
+	roDateWritten := `\d{1,2}[ \t]+` + roMonths + `[ \t]+(?:19|20)\d{2}`
+
+	// Written Bulgarian dates: "12 февруари 2026"
+	bgMonths := `(?:януари|февруари|март|април|май|юни|юли|август|септември|октомври|ноември|декември)`
+	bgDateWritten := `\d{1,2}[ \t]+` + bgMonths + `[ \t]+(?:19|20)\d{2}`
+
+	// Written Croatian dates: "12. veljače 2026"
+	hrMonths := `(?:siječnja|veljače|ožujka|travnja|svibnja|lipnja|srpnja|kolovoza|rujna|listopada|prosinca|siječanj|veljača|ožujak|travanj|svibanj|lipanj|srpanj|kolovoz|rujan|listopad|studeni|prosinac)`
+	hrDateWritten := `\d{1,2}\.?[ \t]+` + hrMonths + `[ \t]+(?:19|20)\d{2}`
+
+	// Written Slovenian dates: "12. februar 2026"
+	siMonths := `(?:januar|februar|marec|april|maj|junij|julij|avgust|september|oktober|november|december)`
+	siDateWritten := `\d{1,2}\.?[ \t]+` + siMonths + `[ \t]+(?:19|20)\d{2}`
+
+	// Written Greek dates: "12 Φεβρουαρίου 2026"
+	elMonths := `(?:Ιανουαρίου|Φεβρουαρίου|Μαρτίου|Απριλίου|Μαΐου|Ιουνίου|Ιουλίου|Αυγούστου|Σεπτεμβρίου|Οκτωβρίου|Νοεμβρίου|Δεκεμβρίου|Ιανουάριος|Φεβρουάριος|Μάρτιος|Απρίλιος|Μάιος|Ιούνιος|Ιούλιος|Αύγουστος|Σεπτέμβριος|Οκτώβριος|Νοέμβριος|Δεκέμβριος)`
+	elDateWritten := `\d{1,2}[ \t]+` + elMonths + `[ \t]+(?:19|20)\d{2}`
+
+	// Written Finnish dates: "12. helmikuuta 2026"
+	fiMonths := `(?:tammikuuta?|helmikuuta?|maaliskuuta?|huhtikuuta?|toukokuuta?|kesäkuuta?|heinäkuuta?|elokuuta?|syyskuuta?|lokakuuta?|marraskuuta?|joulukuuta?|tammikuu|helmikuu|maaliskuu|huhtikuu|toukokuu|kesäkuu|heinäkuu|elokuu|syyskuu|lokakuu|marraskuu|joulukuu)`
+	fiDateWritten := `\d{1,2}\.?[ \t]+` + fiMonths + `[ \t]+(?:19|20)\d{2}`
+
+	// Written Estonian dates: "12. veebruar 2026"
+	eeMonths := `(?:jaanuar|veebruar|märts|aprill|mai|juuni|juuli|august|september|oktoober|november|detsember)`
+	eeDateWritten := `\d{1,2}\.?[ \t]+` + eeMonths + `[ \t]+(?:19|20)\d{2}`
+
+	// Written Latvian dates: "12. februāris 2026"
+	lvMonths := `(?:janvāris|februāris|marts|aprīlis|maijs|jūnijs|jūlijs|augusts|septembris|oktobris|novembris|decembris)`
+	lvDateWritten := `\d{1,2}\.?[ \t]+` + lvMonths + `[ \t]+(?:19|20)\d{2}`
+
+	// Written Lithuanian dates: "12 vasario 2026"
+	ltMonths := `(?:sausio|vasario|kovo|balandžio|gegužės|birželio|liepos|rugpjūčio|rugsėjo|spalio|lapkričio|gruodžio|sausis|vasaris|kovas|balandis|gegužė|birželis|liepa|rugpjūtis|rugsėjis|spalis|lapkritis|gruodis)`
+	ltDateWritten := `\d{1,2}\.?[ \t]+` + ltMonths + `[ \t]+(?:19|20)\d{2}`
+
+	// Written Danish dates: "12. februar 2026"
+	dkMonths := `(?:januar|februar|marts|april|maj|juni|juli|august|september|oktober|november|december)`
+	dkDateWritten := `\d{1,2}\.?[ \t]+` + dkMonths + `[ \t]+(?:19|20)\d{2}`
+
+	// Written Norwegian dates: "12. februar 2026"
+	noMonths := `(?:januar|februar|mars|april|mai|juni|juli|august|september|oktober|november|desember)`
+	noDateWritten := `\d{1,2}\.?[ \t]+` + noMonths + `[ \t]+(?:19|20)\d{2}`
+
+	// All month names across ALL supported languages.
+	allMonths := `(?:` + enMonths + `|` + deMonths + `|` + frMonths + `|` + esMonths + `|` + itMonths +
+		`|` + nlMonths + `|` + plMonths + `|` + seMonths + `|` + ptMonths +
+		`|` + czMonths + `|` + skMonths + `|` + huMonths + `|` + roMonths + `|` + bgMonths +
+		`|` + hrMonths + `|` + siMonths + `|` + elMonths + `|` + fiMonths +
+		`|` + eeMonths + `|` + lvMonths + `|` + ltMonths + `|` + dkMonths + `|` + noMonths + `)`
 
 	// Bare month + 4-digit year: "Februar 2026", "March 2025", "janvier 2024"
 	bareMonthYear := `(?i)\b` + allMonths + `[ \t]+(?:19|20)\d{2}\b`
@@ -894,6 +1038,20 @@ func dateScanners() []Scanner {
 		NewRegexScanner(regexp.MustCompile(plDateWritten), "DATE", 0.85),
 		NewRegexScanner(regexp.MustCompile(seDateWritten), "DATE", 0.85),
 		NewRegexScanner(regexp.MustCompile(ptDateWritten), "DATE", 0.85),
+		NewRegexScanner(regexp.MustCompile(czDateWritten), "DATE", 0.85),
+		NewRegexScanner(regexp.MustCompile(skDateWritten), "DATE", 0.85),
+		NewRegexScanner(regexp.MustCompile(huDateWritten), "DATE", 0.85),
+		NewRegexScanner(regexp.MustCompile(roDateWritten), "DATE", 0.85),
+		NewRegexScanner(regexp.MustCompile(bgDateWritten), "DATE", 0.85),
+		NewRegexScanner(regexp.MustCompile(hrDateWritten), "DATE", 0.85),
+		NewRegexScanner(regexp.MustCompile(siDateWritten), "DATE", 0.85),
+		NewRegexScanner(regexp.MustCompile(elDateWritten), "DATE", 0.85),
+		NewRegexScanner(regexp.MustCompile(fiDateWritten), "DATE", 0.85),
+		NewRegexScanner(regexp.MustCompile(eeDateWritten), "DATE", 0.85),
+		NewRegexScanner(regexp.MustCompile(lvDateWritten), "DATE", 0.85),
+		NewRegexScanner(regexp.MustCompile(ltDateWritten), "DATE", 0.85),
+		NewRegexScanner(regexp.MustCompile(dkDateWritten), "DATE", 0.85),
+		NewRegexScanner(regexp.MustCompile(noDateWritten), "DATE", 0.85),
 		NewRegexScanner(regexp.MustCompile(bareMonthYear), "DATE", 0.80),
 		NewRegexScanner(
 			regexp.MustCompile(monthYear),
@@ -1850,6 +2008,73 @@ func businessIDScanners() []Scanner {
 		NewRegexScanner(
 			regexp.MustCompile(`\bRF\d{2}[A-Z0-9]{1,21}\b`),
 			"FINANCIAL", 0.95,
+		),
+		// SEPA Creditor ID: keyword + CC + 2 check digits + alphanumeric creditor reference
+		// e.g. DE98ZZZ09999999999, FR98ZZZ123456, GB98ZZZSDDBARC0000000000001
+		NewRegexScanner(
+			regexp.MustCompile(`(?i)(?:`+
+				// DE
+				`Gläubiger-?(?:ID|Identifikation(?:snummer)?)`+
+				// EN
+				`|Creditor[ \t]+(?:ID|Identifier)|SEPA[ \t]+Creditor[ \t]+ID`+
+				// FR
+				`|Identifiant[ \t]+créancier|ID[ \t]+créancier|ICS`+
+				// IT
+				`|ID[ \t]+creditore|Identificativo[ \t]+creditore|Codice[ \t]+creditore`+
+				// ES
+				`|Identificador[ \t]+del[ \t]+acreedor|ID[ \t]+acreedor`+
+				// NL
+				`|Incassant-?ID|Crediteur-?ID`+
+				// PT
+				`|ID[ \t]+credor|Identificação[ \t]+do[ \t]+credor`+
+				// PL
+				`|Identyfikator[ \t]+wierzyciela`+
+				// SE/DK/NO
+				`|Borgenärs-?ID|Kreditor-?ID|Kreditors-?ID`+
+				// HU
+				`|Hitelező[ \t]+azonosító`+
+				// CZ/SK
+				`|Identifikátor[ \t]+věřitele|Identifikátor[ \t]+veriteľa`+
+				// RO
+				`|ID[ \t]+creditor`+
+				// EL
+				`|Αναγνωριστικό[ \t]+πιστωτή`+
+				`)[: \t]+([A-Z]{2}\d{2}[A-Za-z0-9]{3,30})\b`),
+			"FINANCIAL", 0.95,
+			WithExtractGroup(1),
+		),
+		// SEPA Mandate Reference: keyword + alphanumeric reference (up to 35 chars)
+		NewRegexScanner(
+			regexp.MustCompile(`(?i)(?:`+
+				// DE
+				`Mandatsreferenz(?:nummer)?|Mandat-?Ref\.?`+
+				// EN
+				`|Mandate[ \t]+(?:reference|ref\.?)|SEPA[ \t]+mandate`+
+				// FR
+				`|Référence[ \t]+(?:de[ \t]+)?mandat|Réf\.?[ \t]+mandat|RUM`+
+				// IT
+				`|Riferimento[ \t]+mandato|Rif\.?[ \t]+mandato`+
+				// ES
+				`|Referencia[ \t]+(?:de[ \t]+)?mandato|Ref\.?[ \t]+mandato`+
+				// NL
+				`|Mandaatsreferentie|Mandaat-?ref\.?|Machtigingsreferentie`+
+				// PT
+				`|Referência[ \t]+(?:de[ \t]+)?mandato`+
+				// PL
+				`|Referencja[ \t]+mandatu`+
+				// SE/DK/NO
+				`|Mandatreferens|Mandatreference|Mandatreferanse`+
+				// HU
+				`|Mandátum[ \t]+hivatkozás|Felhatalmazás[ \t]+hivatkozás`+
+				// CZ/SK
+				`|Reference[ \t]+mandátu|Referencia[ \t]+mandátu`+
+				// RO
+				`|Referință[ \t]+mandat`+
+				// EL
+				`|Αναφορά[ \t]+εντολής`+
+				`)[: \t]+([A-Za-z0-9][\w.\-/]{2,35})\b`),
+			"ID_NUMBER", 0.90,
+			WithExtractGroup(1),
 		),
 	}
 }
