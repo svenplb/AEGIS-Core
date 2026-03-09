@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -22,7 +23,11 @@ func TestMain(m *testing.M) {
 	}
 	defer os.RemoveAll(dir)
 
-	testBinary = filepath.Join(dir, "aegis-scan")
+	bin := "aegis-scan"
+	if runtime.GOOS == "windows" {
+		bin += ".exe"
+	}
+	testBinary = filepath.Join(dir, bin)
 	cmd := exec.Command("go", "build", "-o", testBinary, ".")
 	cmd.Stderr = os.Stderr
 	if err := cmd.Run(); err != nil {

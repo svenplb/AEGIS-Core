@@ -197,6 +197,30 @@ func ssnScanners() []Scanner {
 			"SSN", 0.90,
 			WithExtractGroup(1),
 		),
+		// Austrian Sozialversicherungsnummer: NNNN DDMMYY (10 digits, context-triggered)
+		NewRegexScanner(
+			regexp.MustCompile(`(?i)(?:Sozialversicherungsnummer|SV-Nummer|SVNR|Versicherungsnummer)[:\s]+(\d{4}\s?\d{6})\b`),
+			"SSN", 0.90,
+			WithExtractGroup(1),
+		),
+		// Hungarian Személyi szám: 1-8 + YYMMDD + NNNN (11 digits, context-triggered)
+		NewRegexScanner(
+			regexp.MustCompile(`(?i)(?:személyi\s+szám|személyazonosító|személy\s+szám)[:\s]+(\d{11})\b`),
+			"SSN", 0.90,
+			WithExtractGroup(1),
+		),
+		// Slovenian EMŠO: 13 digits DDMMYYY+region+sex+check (context-triggered)
+		NewRegexScanner(
+			regexp.MustCompile(`(?i)(?:EMŠO|EMSO)[:\s]+(\d{13})\b`),
+			"SSN", 0.90,
+			WithExtractGroup(1),
+		),
+		// Luxembourgish National ID: 13 digits (context-triggered)
+		NewRegexScanner(
+			regexp.MustCompile(`(?i)(?:matricule|numéro\s+d['']identification|ID\s+nationale?)[:\s]+(\d{13})\b`),
+			"SSN", 0.90,
+			WithExtractGroup(1),
+		),
 	}
 }
 

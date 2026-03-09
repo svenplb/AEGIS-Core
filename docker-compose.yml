@@ -1,0 +1,13 @@
+services:
+  aegis-server:
+    build:
+      context: .
+      dockerfile: Dockerfile.nlp
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./models:/app/models
+    environment:
+      - AEGIS_SERVER_PORT=9090
+      - AEGIS_CORS_ORIGINS=*
+      - ONNX_LIB_PATH=/usr/local/lib/libonnxruntime.so

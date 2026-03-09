@@ -1,0 +1,8 @@
+models/
+training/
+.git/
+.claude/
+bin/
+*.exe
+*.onnx
+testdata/benchmark/

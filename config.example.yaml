@@ -16,6 +16,21 @@ scanner:
     # - "example\\.com"
     # - "John Doe"  # test placeholder name
 
+# NLP/NER settings (requires build tag: -tags nlp)
+nlp:
+  enabled: false          # set true to enable NER-based detection
+  model_dir: "models"     # directory containing ONNX model files
+  ner_model: "ner.onnx"   # NER ONNX model filename
+  ner_tokenizer: "tokenizer.json"  # HuggingFace tokenizer config
+  max_length: 512         # maximum token sequence length
+  num_threads: 4          # ONNX Runtime inference threads
+  min_score: 0.5          # minimum NER confidence score (0.0–1.0)
+
+# Context enhancement settings
+context:
+  boost_factor: 0.15      # score boost when contextual keywords are nearby
+  window_size: 50         # byte window around match for keyword search
+
 # Logging settings
 logging:
   level: "info"   # debug, info, warn, error

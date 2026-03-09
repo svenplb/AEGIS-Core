@@ -35,6 +35,7 @@ Thumbs.db
 
 # Config (keep example, ignore local)
 config.yaml
+config.*.yaml
 !config.example.yaml
 
 # Local notes

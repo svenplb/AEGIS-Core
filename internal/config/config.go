@@ -22,6 +22,23 @@ type ScannerConfig struct {
 	Allowlist      []string        `yaml:"allowlist"`
 }
 
+// NLPConfig holds NLP/NER-related settings.
+type NLPConfig struct {
+	Enabled      bool    `yaml:"enabled"`
+	ModelDir     string  `yaml:"model_dir"`
+	NERModel     string  `yaml:"ner_model"`
+	NERTokenizer string  `yaml:"ner_tokenizer"`
+	MaxLength    int     `yaml:"max_length"`
+	NumThreads   int     `yaml:"num_threads"`
+	MinScore     float64 `yaml:"min_score"`
+}
+
+// ContextConfig holds context enhancement settings.
+type ContextConfig struct {
+	BoostFactor float64 `yaml:"boost_factor"`
+	WindowSize  int     `yaml:"window_size"`
+}
+
 // LoggingConfig holds logging-related settings.
 type LoggingConfig struct {
 	Level string `yaml:"level"`
@@ -30,6 +47,8 @@ type LoggingConfig struct {
 // Config is the top-level aegis-core configuration.
 type Config struct {
 	Scanner ScannerConfig `yaml:"scanner"`
+	NLP     NLPConfig     `yaml:"nlp"`
+	Context ContextConfig `yaml:"context"`
 	Logging LoggingConfig `yaml:"logging"`
 }
 
@@ -78,6 +97,19 @@ func (c *Config) Validate() error {
 
 	if !validLogLevels[c.Logging.Level] {
 		return fmt.Errorf("config: unknown log level %q (want debug|info|warn|error)", c.Logging.Level)
+	}
+
+	if c.NLP.MaxLength < 0 {
+		return fmt.Errorf("config: nlp.max_length must be non-negative")
+	}
+	if c.NLP.NumThreads < 0 {
+		return fmt.Errorf("config: nlp.num_threads must be non-negative")
+	}
+	if c.Context.BoostFactor < 0 {
+		return fmt.Errorf("config: context.boost_factor must be non-negative")
+	}
+	if c.Context.WindowSize < 0 {
+		return fmt.Errorf("config: context.window_size must be non-negative")
 	}
 
 	return nil

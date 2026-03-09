@@ -6,8 +6,3 @@ type Mapping struct {
 	Original string `json:"original"` // e.g. "Thomas Schmidt"
 	Type     string `json:"type"`     // e.g. "PERSON"
 }
-
-// MappingTable holds all token↔original mappings for a redaction session.
-type MappingTable struct {
-	Entries []Mapping
-}

@@ -320,7 +320,6 @@ const uiHTML = `<!DOCTYPE html>
       <span class="btn-label"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="3.5" width="11" height="9" rx="1.5"/><path d="M5 7h6M5 10h3.5"/></svg> Redact</span><span class="btn-dots" style="visibility:hidden"><span class="dot-anim"></span></span>
     </button>
     <span class="btn-sub">Replace with tokens</span>
-    </button>
   </div>
 
 </div>

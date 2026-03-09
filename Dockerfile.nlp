@@ -1,0 +1,45 @@
+# Multi-stage build for aegis-server with NLP/NER support.
+# Requires ONNX Runtime (glibc-based, so Debian instead of Alpine).
+#
+# Build:  docker build -f Dockerfile.nlp -t aegis-nlp .
+# Run:    docker run --rm -p 9090:9090 -v ./models:/app/models aegis-nlp
+
+# ---------- Build stage ----------
+FROM golang:1.25-bookworm AS builder
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    gcc wget ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+ARG ONNX_VERSION=1.24.1
+RUN wget -q https://github.com/microsoft/onnxruntime/releases/download/v${ONNX_VERSION}/onnxruntime-linux-x64-${ONNX_VERSION}.tgz \
+    && tar xzf onnxruntime-linux-x64-${ONNX_VERSION}.tgz \
+    && cp onnxruntime-linux-x64-${ONNX_VERSION}/lib/libonnxruntime.so* /usr/local/lib/ \
+    && ldconfig \
+    && rm -rf onnxruntime-linux-x64-${ONNX_VERSION}*
+
+WORKDIR /build
+COPY go.mod go.sum ./
+RUN go mod download
+COPY . .
+RUN CGO_ENABLED=1 go build -tags nlp -ldflags="-s -w" -o aegis-server ./cmd/aegis-server
+
+# ---------- Runtime stage ----------
+FROM debian:bookworm-slim
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY --from=builder /usr/local/lib/libonnxruntime.so* /usr/local/lib/
+RUN ldconfig
+
+WORKDIR /app
+COPY --from=builder /build/aegis-server .
+COPY config.example.yaml config.yaml
+RUN sed -i 's/enabled: false/enabled: true/' config.yaml
+
+ENV ONNX_LIB_PATH=/usr/local/lib/libonnxruntime.so
+VOLUME /app/models
+EXPOSE 9090
+ENTRYPOINT ["./aegis-server", "-config", "config.yaml"]
