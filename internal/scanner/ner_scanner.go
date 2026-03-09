@@ -76,15 +76,68 @@ func (ns *NERScanner) Scan(text string) []Entity {
 			continue
 		}
 
-		entities = append(entities, Entity{
-			Start:    start,
-			End:      end,
-			Type:     entityType,
-			Text:     text[start:end],
-			Score:    r.Score,
-			Detector: "ner",
-		})
+		// Split entities that span newlines into separate parts.
+		for _, part := range splitAtNewlines(text, start, end) {
+			entities = append(entities, Entity{
+				Start:    part.start,
+				End:      part.end,
+				Type:     entityType,
+				Text:     text[part.start:part.end],
+				Score:    r.Score,
+				Detector: "ner",
+			})
+		}
 	}
 
 	return entities
+}
+
+// span is a byte range within text.
+type span struct{ start, end int }
+
+// splitAtNewlines splits a byte range at newline characters, returning
+// trimmed non-empty segments. This prevents NER entities from merging
+// text across line boundaries (e.g. a name on one line and an address
+// on the next).
+func splitAtNewlines(text string, start, end int) []span {
+	s := text[start:end]
+	var spans []span
+	segStart := 0
+	for i := 0; i < len(s); i++ {
+		if s[i] == '\n' || s[i] == '\r' {
+			if segStart < i {
+				// Trim trailing spaces from segment.
+				segEnd := i
+				for segEnd > segStart && s[segEnd-1] == ' ' {
+					segEnd--
+				}
+				if segStart < segEnd {
+					spans = append(spans, span{start + segStart, start + segEnd})
+				}
+			}
+			// Skip past \r\n or \n.
+			if s[i] == '\r' && i+1 < len(s) && s[i+1] == '\n' {
+				i++
+			}
+			segStart = i + 1
+			// Trim leading spaces from next segment.
+			for segStart < len(s) && s[segStart] == ' ' {
+				segStart++
+			}
+		}
+	}
+	// Last segment.
+	if segStart < len(s) {
+		segEnd := len(s)
+		for segEnd > segStart && s[segEnd-1] == ' ' {
+			segEnd--
+		}
+		if segStart < segEnd {
+			spans = append(spans, span{start + segStart, start + segEnd})
+		}
+	}
+	if len(spans) == 0 {
+		return nil
+	}
+	return spans
 }
