@@ -1573,8 +1573,6 @@ func TestBIC_TruePositives(t *testing.T) {
 		{"BIC context", "BIC: BKAUATWW", "BKAUATWW"},
 		{"SWIFT context", "SWIFT: GIBAATWWXXX", "GIBAATWWXXX"},
 		{"BIC/SWIFT", "BIC/SWIFT COBADEFFXXX", "COBADEFFXXX"},
-		{"BIC standalone AT", "Transfer via BKAUATWW bitte.", "BKAUATWW"},
-		{"BIC standalone DE", "Code: COBADEFF", "COBADEFF"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -1598,12 +1596,13 @@ func TestBIC_TrueNegatives(t *testing.T) {
 	cases := []string{
 		"The word HELLO is common.",
 		"File FORMAT is important.",
+		"Transfer via BKAUATWW bitte.",
+		"INCIDENT reported yesterday.",
 	}
 	for _, input := range cases {
 		entities := s.Scan(input)
 		for _, e := range entities {
 			if e.Type == "FINANCIAL" && len(e.Text) >= 8 && len(e.Text) <= 11 {
-				// Check if it looks like a BIC false positive
 				t.Errorf("BIC false positive in %q: got %v", input, e)
 			}
 		}

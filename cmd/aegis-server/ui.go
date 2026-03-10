@@ -183,8 +183,9 @@ const uiHTML = `<!DOCTYPE html>
   }
   td{padding:0.4rem 0.65rem;border-bottom:1px solid var(--brd-lt);vertical-align:middle}
   tr:last-child td{border-bottom:none}
-  tbody tr{transition:background .1s}
+  tbody tr{transition:background .1s;cursor:pointer}
   tbody tr:hover td{background:var(--acc-wash)}
+  tbody tr.hl td{background:var(--acc-soft)}
   .mono{font-family:var(--mono);font-size:0.76rem;word-break:break-all}
 
   /* ═ Tags ═ */
@@ -389,6 +390,21 @@ const uiHTML = `<!DOCTYPE html>
       tr.appendChild(el("td","mono",e.text));
       var td3=document.createElement("td");scoreCell(td3,e.score);tr.appendChild(td3);
       tr.appendChild(el("td","mono",e.detector));
+      tr.onclick=(function(ent,row){return function(){
+        // Remove previous highlight
+        var prev=tb.querySelector("tr.hl");if(prev)prev.classList.remove("hl");
+        row.classList.add("hl");
+        // Convert byte offsets to JS char offsets
+        var txt=inputEl.value;
+        var enc=new TextEncoder();
+        var bytes=enc.encode(txt);
+        // Byte offset → char offset by decoding prefix
+        var dec=new TextDecoder();
+        var charStart=dec.decode(bytes.slice(0,ent.start)).length;
+        var charEnd=dec.decode(bytes.slice(0,ent.end)).length;
+        inputEl.focus();
+        inputEl.setSelectionRange(charStart,charEnd);
+      }})(e,tr);
       tb.appendChild(tr);
     });
     t.appendChild(tb);w.appendChild(t);return w;

@@ -225,6 +225,17 @@ func ssnScanners() []Scanner {
 }
 
 // validateBSN performs the Dutch elfproef (11-check) validation.
+// containsDigit returns true if s has at least one ASCII digit.
+// Used to reject pure-word matches in keyword-triggered ID patterns.
+func containsDigit(s string) bool {
+	for _, c := range s {
+		if c >= '0' && c <= '9' {
+			return true
+		}
+	}
+	return false
+}
+
 func validateBSN(s string) bool {
 	if len(s) != 9 {
 		return false
@@ -413,7 +424,7 @@ func idNumberScanners() []Scanner {
 			`|Piedāvājums|Rēķins|Kredītrēķins|Pavadzīme`+
 			// LT
 			`|Pasiūlymas|Sąskaita|Kreditinė[ \t]+sąskaita|Važtaraštis`+
-			`)[ \t]*(?:number|no\.?|num\.?|nr\.?|nummer|nº\.?|n°\.?|číslo|szám|#)[: \t]+([A-Za-z0-9][\w.\-/]{2,})`),
+			`)[ \t]*(?:number|no\.?|num\.?|nr\.?|nummer|nº\.?|n°\.?|číslo|szám|#)[: \t]+([A-Za-z0-9][\w.\-/]{2,}[\w\-/])`),
 			"ID_NUMBER", 0.90,
 			WithExtractGroup(1),
 		),
@@ -431,9 +442,10 @@ func idNumberScanners() []Scanner {
 			// SE/DK/NO compound forms
 			`|Fakturanummer|Faktura-?nr\.?|Offertnummer|Offert-?nr\.?|Ordernummer|Order-?nr\.?`+
 			`|Kreditnotanummer|Kreditnota-?nr\.?|Följesedelsnummer|Följesedels-?nr\.?`+
-			`)[: \t]+([A-Za-z0-9][\w.\-/]{2,})`),
+			`)[: \t]+([A-Za-z0-9][\w.\-/]{2,}[\w\-/])`),
 			"ID_NUMBER", 0.90,
 			WithExtractGroup(1),
+			WithValidator(containsDigit),
 		),
 		// Invoice/order with colon separator: "Invoice: X", "Reference: X"
 		NewRegexScanner(
@@ -461,9 +473,10 @@ func idNumberScanners() []Scanner {
 			`|Προσφορά|Τιμολόγιο`+
 			// EE/LV/LT
 			`|Pakkumine|Arve|Kreeditarve|Piedāvājums|Rēķins|Pasiūlymas|Sąskaita`+
-			`)[ \t]*:[ \t]*([A-Za-z0-9][\w.\-/]{2,})`),
+			`)[ \t]*:[ \t]*([A-Za-z0-9][\w.\-/]{2,}[\w\-/])`),
 			"ID_NUMBER", 0.90,
 			WithExtractGroup(1),
+			WithValidator(containsDigit),
 		),
 		// French invoice: "Facture N°: FA-2026-1234", "Numéro de facture: X"
 		// Use [ \t] to prevent matching across newlines.
@@ -483,12 +496,14 @@ func idNumberScanners() []Scanner {
 			regexp.MustCompile(`(?i)(?:Referentienummer|Referentie-?nr\.?|Factuurnummer|Factuur-?nr\.?|Kenmerk)[: \t]+([A-Za-z0-9][\w.\-/]{2,})`),
 			"ID_NUMBER", 0.90,
 			WithExtractGroup(1),
+			WithValidator(containsDigit),
 		),
 		// German insurance/policy: "Versicherungsschein: WS-2026-887654", "Polizzennummer: X", "Aktenzeichen: X"
 		NewRegexScanner(
 			regexp.MustCompile(`(?i)(?:Versicherungsschein|Polizzen?-?(?:nummer|nr\.?)|Aktenzeichen|Vertrags?-?(?:nummer|nr\.?)|Schadens?-?(?:nummer|nr\.?))[: \t]+([A-Za-z0-9][\w.\-/]{2,})`),
 			"ID_NUMBER", 0.90,
 			WithExtractGroup(1),
+			WithValidator(containsDigit),
 		),
 		// Invoice No: / Invoice No.: (with period in No.)
 		NewRegexScanner(
@@ -1171,17 +1186,19 @@ func financialScanners() []Scanner {
 
 	// European amounts WITH thousand separator but no symbol: 2.544,70, 1.250,00
 	// Distinctive enough to not need context (dot-thousand + comma-decimal + exactly 2 decimals).
-	eurBareThousands := `\b\d{1,3}(?:\.\d{3})+,\d{2}\b`
+	// Optionally captures trailing currency code or symbol.
+	eurBareThousands := `\b\d{1,3}(?:\.\d{3})+,\d{2}(?:\s?(?:EUR|USD|GBP|CHF|PLN|CZK|HUF|RON|SEK|NOK|DKK|€))?\b`
 
 	// European amounts WITHOUT symbol and without thousand separator: 65,00, 94,70, 2229,00
 	// Requires financial context nearby to avoid false positives.
-	eurBare := `\b\d{2,6},\d{2}\b`
+	// Optionally captures trailing currency code (EUR, USD, etc.) or symbol (€).
+	eurBare := `\b\d{2,6},\d{2}(?:\s?(?:EUR|USD|GBP|CHF|PLN|CZK|HUF|RON|SEK|NOK|DKK|€))?\b`
 
 	// BIC/SWIFT codes (context-triggered): BKAUATWW, GIBAATWWXXX
 	bicContext := `(?i)(?:BIC|SWIFT|BIC/SWIFT)[:\s/]+([A-Z]{6}[A-Z0-9]{2}(?:[A-Z0-9]{3})?)`
 
-	// BIC/SWIFT standalone with known EU country codes
-	bicStandalone := `\b[A-Z]{4}(?:AT|DE|CH|FR|IT|ES|NL|BE|IE|GB|LU|PT|PL|CZ|HU|SK|SI|HR|BG|RO|LT|LV|EE|FI|SE|DK|NO|LI|MT|CY|GR)[A-Z0-9]{2}(?:[A-Z0-9]{3})?\b`
+	// BIC/SWIFT standalone removed — too many false positives (e.g. "INCIDENT"
+	// matches INCI+DE+NT). Context-triggered BIC pattern above is sufficient.
 
 	// Polish Złoty: 1 500,00 zł or 1500.00 PLN
 	plnSuffix := `\d{1,3}(?:[\s.]\d{3})*,\d{2}\s?(?:zł|PLN)\b`
@@ -1226,7 +1243,6 @@ func financialScanners() []Scanner {
 			"FINANCIAL", 0.95,
 			WithExtractGroup(1),
 		),
-		NewRegexScanner(regexp.MustCompile(bicStandalone), "FINANCIAL", 0.85),
 	}
 }
 
@@ -1998,23 +2014,26 @@ func businessIDScanners() []Scanner {
 	salaryBareAmount := `\d{3,7}(?:[.,]\d{2})?\s?(?:€|EUR|USD|GBP|CHF|PLN|CZK|HUF|RON|SEK|NOK|DKK|kr\.?|zł|Kč|Ft|lei)`
 
 	return []Scanner{
-		// Customer number: keyword + alphanumeric ID
+		// Customer number: keyword + alphanumeric ID (must contain a digit)
 		NewRegexScanner(
 			regexp.MustCompile(`(?i)`+customerKW+`[:\s]+([A-Za-z0-9][\w.\-/]{2,20})\b`),
 			"ID_NUMBER", 0.90,
 			WithExtractGroup(1),
+			WithValidator(containsDigit),
 		),
-		// Employee number: keyword + alphanumeric ID
+		// Employee number: keyword + alphanumeric ID (must contain a digit)
 		NewRegexScanner(
 			regexp.MustCompile(`(?i)`+employeeKW+`[:\s]+([A-Za-z0-9][\w.\-/]{2,20})\b`),
 			"ID_NUMBER", 0.90,
 			WithExtractGroup(1),
+			WithValidator(containsDigit),
 		),
-		// Contract number: keyword + alphanumeric ID
+		// Contract number: keyword + alphanumeric ID (must contain a digit)
 		NewRegexScanner(
 			regexp.MustCompile(`(?i)`+contractKW+`[:\s]+([A-Za-z0-9][\w.\-/]{2,20})\b`),
 			"ID_NUMBER", 0.90,
 			WithExtractGroup(1),
+			WithValidator(containsDigit),
 		),
 		// Salary: keyword + amount with currency symbol (tagged as FINANCIAL)
 		NewRegexScanner(

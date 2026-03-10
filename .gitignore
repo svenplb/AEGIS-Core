@@ -5,7 +5,7 @@ bin/
 /aegis-server
 *.exe
 .claude/
-
+models-copy/
 # Go build cache
 *.o
 *.a

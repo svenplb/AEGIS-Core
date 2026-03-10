@@ -696,6 +696,105 @@ Reference number: ORD-2026-00042. Ticket ID: JIRA-1234.
 Temperature: 98.6°F / 37°C. Distance: 42.195 km (marathon).`,
 			Expected: map[string][]string{},
 		},
+		{
+			Category: "FalsePositive",
+			Language: "DE",
+			Text: `Technische Dokumentation — Maschinensteuerung
+Seriennummer: SN-4711-0815. Firmware v3.2.1-rc4.
+Betriebsstunden: 12.450h. Drehzahl: 1.500 U/min.
+Leistung: 4.200 kW bei Volllast.
+Wartungsintervall alle 2.000 Betriebsstunden.
+Kundennummer lautet in der Datenbank.
+Mitarbeiternummer steht im System.
+Vertragsnummer folgt per Post.`,
+			Expected: map[string][]string{},
+		},
+		{
+			Category: "FalsePositive",
+			Language: "EN",
+			Text: `INCIDENT REPORT — Production Outage
+Severity: P1/Critical. Duration: 4h 23m.
+Root cause: Memory leak in service mesh (Istio 1.18.2).
+Affected pods: 42 of 120 replicas. CPU throttling at 85%.
+Latency p99 increased from 12ms to 3400ms.
+MTTR: 4.5 hours. SLA breach: none (99.9% target vs 99.7% actual).
+Runbook: OPS-HANDBOOK-2026-v2. Postmortem scheduled for Friday.`,
+			Expected: map[string][]string{},
+		},
+		{
+			Category: "FalsePositive",
+			Language: "DE",
+			Text: `Kochrezept: Wiener Schnitzel für 4 Personen
+Zubereitungszeit: ca. 45 Minuten bei 180 Grad.
+Zutaten: 4 Kalbsschnitzel à 150g, 200g Semmelbrösel.
+Schritt 1: Fleisch auf 5mm Dicke klopfen.
+Schritt 2: In Mehl, Ei und Bröseln wenden.
+Schritt 3: In 2cm Butterschmalz bei 170°C ausbacken.
+Nährwerte pro Portion: 520 kcal, 28g Fett, 35g Eiweiß.`,
+			Expected: map[string][]string{},
+		},
+		{
+			Category: "FalsePositive",
+			Language: "EN",
+			Text: `Legal Reference Guide
+Article 15 GDPR grants the right of access by the data subject.
+Section 823 BGB covers tort liability under German civil law.
+Regulation (EU) 2016/679 entered into force on 24 May 2018.
+Directive 95/46/EC was repealed by the GDPR.
+Case C-311/18 (Schrems II) invalidated the EU-US Privacy Shield.
+ISO 27001:2022 certification is required for all processors.`,
+			Expected: map[string][]string{},
+		},
+		{
+			Category: "FalsePositive",
+			Language: "DE",
+			Text: `Sportergebnisse Bundesliga 28. Spieltag
+Bayern München 3:1 Borussia Dortmund (Tore: 12., 45., 78. Min)
+RB Leipzig 0:0 Eintracht Frankfurt
+SC Freiburg 2:2 VfB Stuttgart (Halbzeit: 1:0)
+Tabelle: 1. Bayern 68 Pkt, 2. Dortmund 55 Pkt, 3. Leipzig 51 Pkt.
+Zuschauer: 75.000 in der Allianz Arena.
+Nächster Spieltag: Samstag, Anstoß 15:30 Uhr.`,
+			Expected: map[string][]string{},
+		},
+		{
+			Category: "FalsePositive",
+			Language: "EN",
+			Text: `Scientific Measurements and Formulas
+The speed of light is 299,792,458 m/s in vacuum.
+Water boils at 100°C (212°F) at standard atmospheric pressure of 1013.25 hPa.
+Avogadro's number: 6.022 × 10²³ mol⁻¹.
+Earth's circumference: 40,075.017 km at the equator.
+Planck's constant: 6.626 × 10⁻³⁴ J·s.
+The half-life of Carbon-14 is 5,730 years.`,
+			Expected: map[string][]string{},
+		},
+		{
+			Category: "FalsePositive",
+			Language: "DE",
+			Text: `Immobilienanzeige — Keine echten Personendaten
+Schöne 3-Zimmer-Wohnung, 85m², Baujahr 1998.
+Kaltmiete: 950 Euro, Nebenkosten: 200 Euro.
+Energieausweis: Klasse B, 75 kWh/m²a.
+Objekt-Nr. IMM-2026-4521. Exposé-Nr. EXP-8834.
+Besichtigung nach Vereinbarung. Provisionsfrei.
+Lage: Zentral, 5 Min zum Hauptbahnhof, PLZ-Gebiet 80xxx.`,
+			Expected: map[string][]string{},
+		},
+		{
+			Category: "FalsePositive",
+			Language: "EN",
+			Text: `Software Release Notes v4.2.0
+Changes in this release:
+- Fixed bug #1234: Login timeout after 300 seconds
+- Improved query performance by 40% for datasets > 1M rows
+- Added support for TLS 1.3 and deprecated TLS 1.0/1.1
+- Updated dependencies: React 18.2.0, Node.js 20.11.0, PostgreSQL 16.1
+- Container image size reduced from 850MB to 320MB
+- API rate limit increased from 100 to 500 requests/minute
+- Minimum required Java version: OpenJDK 21.0.1`,
+			Expected: map[string][]string{},
+		},
 
 		// ============================================================
 		// CATEGORY: Bulk data export (realistic DSGVO Art. 20 portability)

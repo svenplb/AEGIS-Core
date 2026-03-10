@@ -135,12 +135,18 @@ func (cs *CompositeScanner) Scan(text string) []Entity {
 		all = append(all, s.Scan(text)...)
 	}
 
-	// Sort by Start, then by length descending (longer match first).
+	// Sort by Start, then by length descending (longer match first),
+	// then by score descending (higher confidence wins ties).
 	sort.Slice(all, func(i, j int) bool {
 		if all[i].Start != all[j].Start {
 			return all[i].Start < all[j].Start
 		}
-		return (all[i].End - all[i].Start) > (all[j].End - all[j].Start)
+		li := all[i].End - all[i].Start
+		lj := all[j].End - all[j].Start
+		if li != lj {
+			return li > lj
+		}
+		return all[i].Score > all[j].Score
 	})
 
 	// Deduplicate: keep longer match when overlapping.

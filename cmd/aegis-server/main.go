@@ -33,7 +33,7 @@ type scanRequest struct {
 // scanResponse is the JSON shape returned by /api/scan.
 type scanResponse struct {
 	Entities       []scanner.Entity `json:"entities"`
-	ProcessingTime int64            `json:"processing_time_ms"`
+	ProcessingTime float64          `json:"processing_time_ms"`
 }
 
 // restoreRequest is the JSON shape for /api/restore.
@@ -140,7 +140,7 @@ func handleScan(sc *scanner.CompositeScanner) http.HandlerFunc {
 
 		start := time.Now()
 		entities := sc.Scan(req.Text)
-		elapsed := time.Since(start).Milliseconds()
+		elapsed := float64(time.Since(start).Microseconds()) / 1000.0
 
 		writeJSON(w, http.StatusOK, scanResponse{
 			Entities:       entities,
