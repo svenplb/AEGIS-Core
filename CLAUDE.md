@@ -70,8 +70,9 @@ Env vars: `AEGIS_SERVER_PORT`, `AEGIS_CORS_ORIGINS`.
 
 ## Training Pipeline
 
-`training/` contains Python scripts for Google Colab:
-- `ner/train_ner.py` — Fine-tune XLM-RoBERTa on MultiNERD (EU languages)
+`training/` contains Python scripts for NER model training:
+- `ner/train_base.py` — Fine-tune xlm-roberta-base on MultiNERD (Colab/local GPU)
+- `ner/train_large.py` — Fine-tune xlm-roberta-large on MultiNERD (RunPod A100)
 - `ner/export_onnx.py` — ONNX export + INT8 quantization
 - `tokenizer/export_tokenizer.py` — Export tokenizer.json for Go loader
 

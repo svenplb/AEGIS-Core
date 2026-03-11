@@ -3,7 +3,7 @@ Fine-tune XLM-RoBERTa on MultiNERD for multilingual Named Entity Recognition.
 
 Usage:
     pip install -r ../requirements.txt
-    python train_ner.py --output_dir ./ner-model --epochs 5
+    python train_base.py --output_dir ./ner-model --epochs 5
 
 Base model: xlm-roberta-base (100+ languages, MIT license)
 Dataset: MultiNERD (Tedeschi & Navigli, 2022) — 164K sentences, 10 languages

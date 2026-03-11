@@ -168,13 +168,13 @@ pip install torch transformers datasets seqeval accelerate optimum[onnxruntime]
 
 **Step 2: Train the model**
 
-Upload `training/ner/train_ner.py` and run it. Training takes ~2-4 hours on a T4 GPU:
+Upload `training/ner/train_base.py` and run it. Training takes ~2-4 hours on a T4 GPU:
 
 ```bash
-python train_ner.py --output_dir ./ner-model --epochs 5 --batch_size 16
+python train_base.py --output_dir ./ner-model --epochs 5 --batch_size 16
 ```
 
-Alternatively, use `training/ner/train_kaggle.py` which is a self-contained script you can paste directly into a Kaggle notebook cell.
+For higher accuracy, use `training/ner/train_large.py` on a RunPod A100 (~5-8h, xlm-roberta-large).
 
 **Step 3: Export to ONNX**
 
